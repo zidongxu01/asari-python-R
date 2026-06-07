@@ -25,6 +25,12 @@ Preview mzML points from one test file:
 Rscript r-prototype/scripts/preview_mzml.R
 ```
 
+To preview a specific file, pass the mzML path:
+
+```sh
+Rscript r-prototype/scripts/preview_mzml.R "实验数据/batch10_MT_20210804_001A.mzML"
+```
+
 Preview the first mass track prototype:
 
 ```sh
