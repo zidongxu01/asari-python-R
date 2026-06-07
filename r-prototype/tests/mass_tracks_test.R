@@ -28,5 +28,22 @@ if (nrow(result$track_table) != 5L) {
   stop("Expected five nonzero scan points in the retained track.")
 }
 
-cat("mass track test passed.\n")
+single_point <- data.frame(
+  scan_id = 1,
+  rtime = 10,
+  mz = 100,
+  intensity = 1000
+)
 
+single_result <- extract_mass_tracks_from_points(
+  single_point,
+  mz_tolerance_ppm = 5,
+  min_timepoints = 1,
+  min_peak_height = 100
+)
+
+if (length(single_result$tracks) != 1L) {
+  stop("Expected single-point input to produce one track when thresholds allow it.")
+}
+
+cat("mass track test passed.\n")

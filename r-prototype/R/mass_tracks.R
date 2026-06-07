@@ -43,14 +43,16 @@ split_points_by_ppm <- function(points, mz_tolerance_ppm = 5) {
   groups <- list()
   current <- points[1, , drop = FALSE]
 
-  for (i in seq.int(2, nrow(points))) {
-    row <- points[i, , drop = FALSE]
-    center_mz <- stats::median(current$mz)
-    if (abs(row$mz - center_mz) < ppm_tolerance(row$mz, mz_tolerance_ppm)) {
-      current <- rbind(current, row)
-    } else {
-      groups[[length(groups) + 1L]] <- current
-      current <- row
+  if (nrow(points) > 1L) {
+    for (i in seq.int(2, nrow(points))) {
+      row <- points[i, , drop = FALSE]
+      center_mz <- stats::median(current$mz)
+      if (abs(row$mz - center_mz) < ppm_tolerance(row$mz, mz_tolerance_ppm)) {
+        current <- rbind(current, row)
+      } else {
+        groups[[length(groups) + 1L]] <- current
+        current <- row
+      }
     }
   }
 
@@ -77,14 +79,16 @@ extract_mass_tracks_from_points <- function(
   rough_bins <- list()
   current_ids <- bin_ids[[1]]
 
-  for (i in seq.int(2, length(bin_ids))) {
-    previous <- bin_ids[[i - 1L]]
-    current <- bin_ids[[i]]
-    if ((current - previous) == 1L || (current - previous) < current * mz_tolerance_ppm * 1e-6) {
-      current_ids <- c(current_ids, current)
-    } else {
-      rough_bins[[length(rough_bins) + 1L]] <- current_ids
-      current_ids <- current
+  if (length(bin_ids) > 1L) {
+    for (i in seq.int(2, length(bin_ids))) {
+      previous <- bin_ids[[i - 1L]]
+      current <- bin_ids[[i]]
+      if ((current - previous) == 1L || (current - previous) < current * mz_tolerance_ppm * 1e-6) {
+        current_ids <- c(current_ids, current)
+      } else {
+        rough_bins[[length(rough_bins) + 1L]] <- current_ids
+        current_ids <- current
+      }
     }
   }
   rough_bins[[length(rough_bins) + 1L]] <- current_ids
@@ -164,4 +168,3 @@ extract_mass_tracks <- function(
     min_peak_height = min_peak_height
   )
 }
-
