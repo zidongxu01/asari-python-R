@@ -35,3 +35,15 @@ The mass track prototype follows the Python asari structure in
 `asari/chromatograms.py`: filter MS1 points, group by thousandth-m/z bins,
 screen by consecutive scans and peak height, then build an intensity vector over
 the full retention-time range. It is not a complete line-by-line port yet.
+
+Preview the first peak detection prototype:
+
+```sh
+Rscript r-prototype/scripts/preview_peaks.R
+```
+
+The peak detection prototype follows the broad structure of `asari/peaks.py`:
+estimate track noise, split signal into ROIs, detect local apexes, estimate left
+and right bases, and emit the fixed feature columns used by
+`preferred_Feature_table.tsv`. Gaussian fitting and full SciPy-style prominence
+logic are not ported yet.
