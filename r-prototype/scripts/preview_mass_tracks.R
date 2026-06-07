@@ -1,7 +1,7 @@
 source("r-prototype/R/mass_tracks.R")
 source("r-prototype/R/preview_utils.R")
 
-file <- preview_input_file("实验数据/batch10_MT_20210804_001.mzML")
+file <- preview_input_file("r-prototype/scripts/preview_mass_tracks.R")
 print_input_file_summary(file)
 
 result <- extract_mass_tracks(

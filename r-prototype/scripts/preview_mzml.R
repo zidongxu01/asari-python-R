@@ -1,7 +1,7 @@
 source("r-prototype/R/mzml_reader.R")
 source("r-prototype/R/preview_utils.R")
 
-file <- preview_input_file("实验数据/batch10_MT_20210804_001.mzML")
+file <- preview_input_file("r-prototype/scripts/preview_mzml.R")
 print_input_file_summary(file)
 
 scan_header <- read_mzml_header(file)

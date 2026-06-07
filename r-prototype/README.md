@@ -19,13 +19,7 @@ Run the smoke test from the repository root:
 Rscript r-prototype/tests/smoke_test.R
 ```
 
-Preview mzML points from one test file:
-
-```sh
-Rscript r-prototype/scripts/preview_mzml.R
-```
-
-To preview a specific file, pass the mzML path:
+Preview mzML points from a specific test file:
 
 ```sh
 Rscript r-prototype/scripts/preview_mzml.R "实验数据/batch10_MT_20210804_001A.mzML"
@@ -34,7 +28,7 @@ Rscript r-prototype/scripts/preview_mzml.R "实验数据/batch10_MT_20210804_001
 Preview the first mass track prototype:
 
 ```sh
-Rscript r-prototype/scripts/preview_mass_tracks.R
+Rscript r-prototype/scripts/preview_mass_tracks.R "实验数据/batch10_MT_20210804_001A.mzML"
 ```
 
 The mass track prototype follows the Python asari structure in
@@ -45,7 +39,7 @@ the full retention-time range. It is not a complete line-by-line port yet.
 Preview the first peak detection prototype:
 
 ```sh
-Rscript r-prototype/scripts/preview_peaks.R
+Rscript r-prototype/scripts/preview_peaks.R "实验数据/batch10_MT_20210804_001A.mzML"
 ```
 
 The peak detection prototype follows the broad structure of `asari/peaks.py`:

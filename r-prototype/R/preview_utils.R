@@ -1,6 +1,14 @@
-preview_input_file <- function(default_file) {
+preview_input_file <- function(script_name = "preview script") {
   args <- commandArgs(trailingOnly = TRUE)
-  file <- if (length(args) > 0L) args[[1]] else default_file
+  if (length(args) == 0L) {
+    stop(
+      "Missing mzML file path.\n",
+      "Usage: Rscript ", script_name, " \"path/to/file.mzML\"",
+      call. = FALSE
+    )
+  }
+
+  file <- args[[1]]
 
   if (!file.exists(file)) {
     stop("Input mzML file does not exist: ", file, call. = FALSE)
@@ -17,4 +25,3 @@ print_input_file_summary <- function(file) {
   cat(file, "\n")
   cat("File size:", size_mb, "MB\n\n")
 }
-
