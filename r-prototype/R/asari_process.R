@@ -1,17 +1,4 @@
-default_parameters <- function() {
-  list(
-    project_name = "asari_project",
-    outdir = "output",
-    mode = "pos",
-    mz_tolerance_ppm = 5,
-    min_timepoints = 6,
-    min_intensity_threshold = 1000,
-    min_peak_height = 100000,
-    workflow = "LC",
-    anno = FALSE,
-    asari_r_prototype = TRUE
-  )
-}
+source("r-prototype/R/parameters.R")
 
 read_project_dir <- function(directory, file_pattern = "\\.mzML$") {
   if (!dir.exists(directory)) {
@@ -125,4 +112,3 @@ asari_process <- function(input_dir, output_dir = "output", project_name = "asar
     feature_table = feature_table
   )
 }
-

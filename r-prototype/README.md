@@ -10,6 +10,9 @@ The first milestone is intentionally small:
 4. Write a skeleton `preferred_Feature_table.tsv`.
 5. Write a `project.json` that records the run parameters.
 
+Default processing parameters live in `R/parameters.R`, translated from Python
+asari's `default_parameters.py`.
+
 The prototype uses `mzR` for the first mzML reader and can preview MS1 points
 from real `.mzML` files.
 
