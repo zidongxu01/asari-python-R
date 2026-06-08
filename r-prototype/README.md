@@ -22,11 +22,15 @@ Run the smoke test from the repository root:
 Rscript r-prototype/tests/smoke_test.R
 ```
 
-Run a single-sample prototype that writes a non-empty feature table:
+Run a single-sample prototype that writes a non-empty feature table. You must
+explicitly provide the mzML file:
 
 ```sh
-Rscript r-prototype/tests/single_sample_process_test.R
+Rscript r-prototype/scripts/process_single_sample.R "实验数据/batch10_MT_20210804_001A.mzML" "r-output" 20
 ```
+
+The optional third argument limits the number of scans for quick testing. Omit
+it only when you are ready to process the full file.
 
 Preview mzML points from a specific test file:
 
