@@ -43,7 +43,7 @@ r-prototype/R/asari_process.R
 
 | R 文件 | 作用 | 状态 |
 | --- | --- | --- |
-| `asari_process.R` | 项目外壳：找 mzML、登记样本、创建输出目录、写 `project.json` 和空 feature table。 | 初版完成 |
+| `asari_process.R` | 项目外壳：找 mzML、登记样本、创建输出目录、写 `project.json`；显式指定单个 mzML 时可写非空 feature table。 | 单样本原型完成 |
 | `mzml_reader.R` | 用 `mzR` 读取 mzML，得到 `scan_id`, `rtime`, `mz`, `intensity`。 | 初版完成 |
 | `mass_tracks.R` | 把相近 m/z 的点按 retention time 串成 mass tracks / EIC。 | 粗原型完成 |
 | `peak_detection.R` | 在 mass tracks 上找峰，生成 feature 表前 11 列。 | 粗原型完成 |
@@ -58,15 +58,13 @@ r-prototype/R/asari_process.R
 | `constructors.py` | 还没有 `MassGrid` / `CompositeMap` / 多样本 feature alignment。 |
 | `mass_functions.py` | 只做了少量 ppm helper，还没有完整 mass matching 和 clustering。 |
 | `peaks.py` | 只做了粗 peak detection，还没有完整 prominence、Gaussian fitting、cSelectivity 逻辑。 |
-| output export | 还没有把真实检测结果完整接入 `asari_process()` 写成非空 `preferred_Feature_table.tsv`。 |
+| output export | 单样本非空 `preferred_Feature_table.tsv` 已接入；多样本输出还没完成。 |
 
 ### 下一步顺序
 
-1. 把 `mass_tracks.R` 和 `peak_detection.R` 接入 `asari_process()`。
-2. 先实现单样本版本，输出真正非空的 feature table。
-3. 对照 Python asari 的 `preferred_Feature_table.tsv` 做结果比较。
-4. 开始 port `mass_functions.py` 的核心匹配函数。
-5. 再做 `constructors.py` 里的多样本对齐逻辑。
+1. 对照 Python asari 的 `preferred_Feature_table.tsv` 做单样本结果比较。
+2. 开始 port `mass_functions.py` 的核心匹配函数。
+3. 再做 `constructors.py` 里的多样本对齐逻辑。
 
 ### 规则
 
@@ -119,7 +117,7 @@ r-prototype/R/asari_process.R
 
 | R file | Purpose | Status |
 | --- | --- | --- |
-| `asari_process.R` | Project shell: find mzML files, register samples, create output folders, write `project.json` and an empty feature table. | Initial version done |
+| `asari_process.R` | Project shell: find mzML files, register samples, create output folders, write `project.json`; can write a non-empty feature table when one mzML file is explicitly selected. | Single-sample prototype done |
 | `mzml_reader.R` | Read mzML with `mzR` and return `scan_id`, `rtime`, `mz`, `intensity`. | Initial version done |
 | `mass_tracks.R` | Group nearby m/z points over retention time into mass tracks / EICs. | Rough prototype done |
 | `peak_detection.R` | Detect peaks on mass tracks and emit the first 11 feature-table columns. | Rough prototype done |
@@ -134,15 +132,13 @@ r-prototype/R/asari_process.R
 | `constructors.py` | No `MassGrid`, `CompositeMap`, or multi-sample feature alignment yet. |
 | `mass_functions.py` | Only minimal ppm helpers exist; full mass matching and clustering are not ported. |
 | `peaks.py` | Only rough peak detection exists; full prominence, Gaussian fitting, and cSelectivity logic are not ported. |
-| output export | Detected features are not fully wired into `asari_process()` as a non-empty `preferred_Feature_table.tsv`. |
+| output export | Single-sample non-empty `preferred_Feature_table.tsv` is wired; multi-sample export is not complete. |
 
 ### Next Steps
 
-1. Wire `mass_tracks.R` and `peak_detection.R` into `asari_process()`.
-2. Implement a single-sample path that writes a real non-empty feature table.
-3. Compare R output against Python asari's `preferred_Feature_table.tsv`.
-4. Port the core matching helpers from `mass_functions.py`.
-5. Implement the multi-sample alignment logic from `constructors.py`.
+1. Compare single-sample R output against Python asari's `preferred_Feature_table.tsv`.
+2. Port the core matching helpers from `mass_functions.py`.
+3. Implement the multi-sample alignment logic from `constructors.py`.
 
 ### Rule
 

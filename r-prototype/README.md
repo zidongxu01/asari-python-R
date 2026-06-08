@@ -22,6 +22,12 @@ Run the smoke test from the repository root:
 Rscript r-prototype/tests/smoke_test.R
 ```
 
+Run a single-sample prototype that writes a non-empty feature table:
+
+```sh
+Rscript r-prototype/tests/single_sample_process_test.R
+```
+
 Preview mzML points from a specific test file:
 
 ```sh
