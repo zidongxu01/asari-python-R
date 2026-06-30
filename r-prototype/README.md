@@ -2,13 +2,16 @@
 
 This folder is the first R prototype for reproducing Python asari behavior.
 
-The first milestone is intentionally small:
+The current prototype covers the first single-sample processing path:
 
 1. Find `.mzML` files in an input folder.
 2. Register samples with stable sample IDs.
 3. Create an asari-style output folder.
-4. Write a skeleton `preferred_Feature_table.tsv`.
-5. Write a `project.json` that records the run parameters.
+4. Extract mass tracks from MS1 data.
+5. Build a single-sample mass grid and composite tracks.
+6. Detect global elution peaks.
+7. Write `full_Feature_table.tsv`, `preferred_Feature_table.tsv`, and
+   `project.json`.
 
 Default processing parameters live in `R/parameters.R`, translated from Python
 asari's `default_parameters.py`.
@@ -46,8 +49,8 @@ Rscript r-prototype/scripts/preview_mass_tracks.R "实验数据/batch10_MT_20210
 
 The mass track prototype follows the Python asari structure in
 `asari/chromatograms.py`: filter MS1 points, group by thousandth-m/z bins,
-screen by consecutive scans and peak height, then build an intensity vector over
-the full retention-time range. It is not a complete line-by-line port yet.
+split wide mz clusters by mass seeds, merge very close tracks, then build an
+intensity vector over the full retention-time range.
 
 Preview the first peak detection prototype:
 
@@ -56,7 +59,24 @@ Rscript r-prototype/scripts/preview_peaks.R "实验数据/batch10_MT_20210804_00
 ```
 
 The peak detection prototype follows the broad structure of `asari/peaks.py`:
-estimate track noise, split signal into ROIs, detect local apexes, estimate left
-and right bases, and emit the fixed feature columns used by
-`preferred_Feature_table.tsv`. Gaussian fitting and full SciPy-style prominence
-logic are not ported yet.
+audit each mass track, split signal into ROIs, detect local apexes with
+prominence and width constraints, evaluate Gaussian shape, compute SNR and
+cSelectivity, and emit the fixed feature columns used by asari feature tables.
+
+Compare R checkpoints with Python asari output:
+
+```sh
+Rscript r-prototype/scripts/compare_with_asari.R "实验数据/MT02Dataset/batch14_MT_20210808_005.mzML"
+```
+
+For a quick partial check:
+
+```sh
+Rscript r-prototype/scripts/compare_with_asari.R "实验数据/MT02Dataset/batch14_MT_20210808_005.mzML" --max-scans 50
+```
+
+If you already ran Python asari and have its output folder, pass it in:
+
+```sh
+Rscript r-prototype/scripts/compare_with_asari.R "实验数据/MT02Dataset/batch14_MT_20210808_005.mzML" --python-output "path/to/python_asari_output"
+```

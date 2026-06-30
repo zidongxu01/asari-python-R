@@ -1,5 +1,5 @@
 source("r-prototype/R/parameters.R")
-source("r-prototype/R/peak_detection.R")
+source("r-prototype/R/global_features.R")
 
 read_project_dir <- function(directory, file_pattern = "\\.mzML$") {
   if (!dir.exists(directory)) {
@@ -37,39 +37,6 @@ create_export_folders <- function(parameters, timestamp = format(Sys.time(), "%Y
   parameters
 }
 
-empty_feature_table <- function(samples) {
-  fixed_columns <- data.frame(
-    id_number = character(),
-    mz = numeric(),
-    rtime = numeric(),
-    rtime_left_base = numeric(),
-    rtime_right_base = numeric(),
-    parent_masstrack_id = integer(),
-    peak_area = numeric(),
-    cSelectivity = numeric(),
-    goodness_fitting = numeric(),
-    snr = numeric(),
-    detection_counts = integer(),
-    stringsAsFactors = FALSE
-  )
-
-  for (sample_name in samples$sample_name) {
-    fixed_columns[[sample_name]] <- numeric()
-  }
-
-  fixed_columns
-}
-
-append_single_sample_intensity <- function(features, sample_name) {
-  if (nrow(features) == 0L) {
-    features[[sample_name]] <- numeric()
-    return(features)
-  }
-
-  features[[sample_name]] <- features$peak_area
-  features
-}
-
 select_single_input_file <- function(input_files, selected_file = NULL) {
   if (is.null(selected_file)) {
     if (length(input_files) == 1L) {
@@ -89,28 +56,79 @@ select_single_input_file <- function(input_files, selected_file = NULL) {
   selected_file
 }
 
-process_single_sample_features <- function(input_file, parameters, max_scans = NULL) {
-  mass_tracks <- extract_mass_tracks(
-    input_file,
-    mz_tolerance_ppm = parameters$mz_tolerance_ppm,
-    min_intensity = parameters$min_intensity_threshold,
-    min_timepoints = parameters$min_timepoints,
-    min_peak_height = parameters$min_intensity_threshold,
+extract_project_mass_tracks <- function(samples, parameters, max_scans = NULL) {
+  sample_mass_tracks <- list()
+
+  for (i in seq_len(nrow(samples))) {
+    sample_name <- samples$sample_name[[i]]
+    input_file <- samples$input_file[[i]]
+    mass_tracks <- extract_mass_tracks(
+      input_file,
+      mz_tolerance_ppm = parameters$mz_tolerance_ppm,
+      min_intensity = parameters$min_intensity_threshold,
+      min_timepoints = parameters$min_timepoints,
+      min_peak_height = parameters$min_peak_height,
+      max_scans = max_scans
+    )
+    sample_mass_tracks[[sample_name]] <- mass_tracks
+  }
+
+  sample_mass_tracks
+}
+
+process_project_features <- function(samples, parameters, max_scans = NULL) {
+  sample_mass_tracks <- extract_project_mass_tracks(
+    samples,
+    parameters = parameters,
     max_scans = max_scans
   )
 
-  features <- detect_peaks(
-    mass_tracks,
-    min_peak_height = parameters$min_peak_height,
+  rt_table <- NULL
+  if (length(sample_mass_tracks) > 0L && !is.null(sample_mass_tracks[[1]]$rt_table)) {
+    rt_table <- sample_mass_tracks[[1]]$rt_table
+  }
+
+  process_global_features(
+    sample_mass_tracks,
+    parameters = parameters,
+    rt_table = rt_table,
+    drop_unaligned_samples = parameters$drop_unaligned_samples
+  )
+}
+
+empty_feature_table <- function(samples) {
+  feature_table <- data.frame(
+    id_number = character(),
+    mz = numeric(),
+    rtime = numeric(),
+    rtime_left_base = numeric(),
+    rtime_right_base = numeric(),
+    parent_masstrack_id = integer(),
+    peak_area = numeric(),
+    cSelectivity = numeric(),
+    goodness_fitting = numeric(),
+    snr = numeric(),
+    detection_counts = integer(),
+    stringsAsFactors = FALSE
+  )
+  for (sample_name in samples$sample_name) {
+    feature_table[[sample_name]] <- numeric()
+  }
+  feature_table
+}
+
+preview_single_sample_features <- function(input_file, parameters, max_scans = NULL) {
+  mass_tracks <- extract_mass_tracks(
+    file = input_file,
+    mz_tolerance_ppm = parameters$mz_tolerance_ppm,
+    min_intensity = parameters$min_intensity_threshold,
     min_timepoints = parameters$min_timepoints,
-    min_intensity_threshold = parameters$min_intensity_threshold,
-    signal_noise_ratio = parameters$signal_noise_ratio,
-    min_peak_ratio = parameters$min_peak_ratio
+    min_peak_height = parameters$min_peak_height,
+    max_scans = max_scans
   )
 
   list(
-    mass_tracks = mass_tracks,
-    features = features
+    mass_tracks = mass_tracks
   )
 }
 
@@ -172,33 +190,32 @@ asari_process <- function(
   samples <- register_samples(sample_files)
   parameters <- create_export_folders(parameters)
 
-  feature_table <- empty_feature_table(samples)
-  single_sample_result <- NULL
+  full_feature_table <- empty_feature_table(samples)
+  preferred_feature_table <- full_feature_table
+  feature_result <- NULL
   if (process_features) {
-    input_file <- selected_input_file
-    sample_name <- tools::file_path_sans_ext(basename(input_file))
-    parameters$selected_file <- input_file
+    parameters$selected_file <- selected_input_file
 
-    single_sample_result <- process_single_sample_features(
-      input_file,
-      parameters,
+    feature_result <- process_project_features(
+      samples,
+      parameters = parameters,
       max_scans = max_scans
     )
 
-    feature_table <- append_single_sample_intensity(
-      single_sample_result$features,
-      sample_name = sample_name
-    )
+    full_feature_table <- feature_result$full_feature_table
+    preferred_feature_table <- feature_result$preferred_feature_table
   }
 
-  write_tsv(feature_table, file.path(parameters$outdir, "preferred_Feature_table.tsv"))
-  write_tsv(feature_table, file.path(parameters$export_outdir, "full_Feature_table.tsv"))
+  write_tsv(preferred_feature_table, file.path(parameters$outdir, "preferred_Feature_table.tsv"))
+  write_tsv(full_feature_table, file.path(parameters$export_outdir, "full_Feature_table.tsv"))
   write_project_json(parameters, samples)
 
   list(
     parameters = parameters,
     samples = samples,
-    feature_table = feature_table,
-    single_sample_result = single_sample_result
+    feature_table = preferred_feature_table,
+    full_feature_table = full_feature_table,
+    preferred_feature_table = preferred_feature_table,
+    feature_result = feature_result
   )
 }

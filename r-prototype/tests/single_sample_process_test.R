@@ -18,8 +18,14 @@ if (!file.exists(feature_path)) {
 }
 
 feature_table <- utils::read.delim(feature_path, check.names = FALSE)
-if (nrow(feature_table) == 0L) {
-  stop("Expected single-sample processing to write a non-empty feature table.")
+full_feature_path <- file.path(result$parameters$export_outdir, "full_Feature_table.tsv")
+full_feature_table <- utils::read.delim(full_feature_path, check.names = FALSE)
+if (nrow(full_feature_table) == 0L) {
+  stop("Expected single-sample processing to write a non-empty full feature table.")
+}
+
+if (nrow(full_feature_table) < nrow(feature_table)) {
+  stop("Expected full feature table to contain at least as many rows as preferred feature table.")
 }
 
 sample_name <- tools::file_path_sans_ext(basename(input_file))
@@ -27,8 +33,8 @@ if (!sample_name %in% names(feature_table)) {
   stop("Expected single-sample intensity column in feature table.")
 }
 
-if (!identical(feature_table[[sample_name]], feature_table$peak_area)) {
-  stop("Expected prototype sample intensity column to equal peak_area.")
+if (any(full_feature_table[[sample_name]] < 0)) {
+  stop("Expected single-sample peak areas to be non-negative.")
 }
 
 if (nrow(result$samples) != 1L || result$samples$sample_name[[1]] != sample_name) {
