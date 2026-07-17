@@ -174,11 +174,72 @@ merge_two_mass_tracks <- function(t1, t2) {
   )
 }
 
+# 合并相邻或 ppm 范围内的千分位 m/z bins，并过滤弱信号和零散信号。
+# 返回的 good bins 会继续交给 bin_to_mass_tracks() 构建 mass tracks。
 get_thousandth_bins <- function(mz_tree,
                                 mz_tolerance_ppm = 5,
                                 min_timepoints = 5,
                                 min_peak_height = 1000) {
-  stop("Not implemented yet: get_thousandth_bins")
+  rough_check_consecutive_scans <- function(datatuples, gap_allowed = 2) {
+    checked <- TRUE
+    check_max_len <- 4 * min_timepoints
+
+    if (length(datatuples) < check_max_len) {
+      min_check_val <- gap_allowed + min_timepoints - 1
+      rts <- sort(vapply(datatuples, function(x) x[[2L]], numeric(1)))
+      steps <- vapply(
+        seq.int(min_timepoints, length(rts)),
+        function(ii) rts[[ii]] - rts[[ii - min_timepoints + 1L]],
+        numeric(1)
+      )
+      if (min(steps) > min_check_val) {
+        checked <- FALSE
+      }
+    }
+
+    checked
+  }
+
+  check_min_peak_height <- function(datatuples, min_peak_height) {
+    max(vapply(datatuples, function(x) x[[3L]], numeric(1))) >=
+      min_peak_height
+  }
+
+  tolerance <- 0.000001 * mz_tolerance_ppm
+  keys <- sort(as.integer(
+    names(mz_tree)[lengths(mz_tree) >= min_timepoints]
+  ))
+  bins_of_bins <- list()
+  current_bin <- keys[[1L]]
+
+  if (length(keys) > 1L) {
+    for (ii in seq.int(2L, length(keys))) {
+      delta <- keys[[ii]] - keys[[ii - 1L]]
+      if (delta == 1L || delta < tolerance * keys[[ii]]) {
+        current_bin <- c(current_bin, keys[[ii]])
+      } else {
+        bins_of_bins[[length(bins_of_bins) + 1L]] <- current_bin
+        current_bin <- keys[[ii]]
+      }
+    }
+  }
+
+  bins_of_bins[[length(bins_of_bins) + 1L]] <- current_bin
+  good_bins <- list()
+
+  for (bin in bins_of_bins) {
+    datatuples <- list()
+    for (key in bin) {
+      datatuples <- c(datatuples, mz_tree[[as.character(key)]])
+    }
+
+    if (check_min_peak_height(datatuples, min_peak_height) &&
+        rough_check_consecutive_scans(datatuples)) {
+      good_bins[[length(good_bins) + 1L]] <- datatuples
+    }
+  }
+
+  good_bins
 }
 
 rt_lowess_calibration <- function(good_landmark_peaks,

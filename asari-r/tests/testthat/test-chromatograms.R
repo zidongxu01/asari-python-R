@@ -33,3 +33,21 @@ test_that("merge_two_mass_tracks averages mz and sums intensities", {
   expect_equal(merged[[1]], 100.0002)
   expect_equal(merged[[2]], c(10, 35, 30, 10))
 })
+
+test_that("get_thousandth_bins merges adjacent bins and filters noise", {
+  make_points <- function(mz, scans, intensities) {
+    Map(function(scan, intensity) c(mz, scan, intensity), scans, intensities)
+  }
+
+  mz_tree <- list(
+    `100000` = make_points(100.0002, 10:14, c(200, 400, 1200, 500, 300)),
+    `100001` = make_points(100.0012, 10:14, c(300, 500, 1300, 600, 400)),
+    `100010` = make_points(100.0102, c(10, 20, 30, 40, 50), rep(2000, 5)),
+    `100020` = make_points(100.0202, 10:14, rep(900, 5))
+  )
+
+  bins <- get_thousandth_bins(mz_tree)
+
+  expect_length(bins, 1)
+  expect_length(bins[[1]], 10)
+})
