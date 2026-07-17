@@ -3,6 +3,8 @@
 # This file should contain mass track / EIC construction and RT alignment logic.
 # The first implementation target is extract_mass_tracks().
 
+# 从 mzML 文件中读取 MS1 和 MS2 扫描。
+# MS1 数据经过强度过滤、m/z 分箱和合并后生成 mass tracks；MS2 谱图单独保存。
 extract_mass_tracks <- function(infile,
                                 mz_tolerance_ppm = 5,
                                 min_intensity = 100,
@@ -107,6 +109,8 @@ extract_mass_tracks <- function(infile,
   )
 }
 
+# 把有限 m/z 范围内的数据点整理成一条覆盖完整 RT 范围的 mass track。
+# 代表 m/z 结合中位数和最高强度点计算；同一扫描存在多个点时保留最大强度。
 extract_single_track_full_rt_length <- function(bin,
                                                 rt_length,
                                                 intensity_data_type = numeric) {
