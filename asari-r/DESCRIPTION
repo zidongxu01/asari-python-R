@@ -1,0 +1,16 @@
+Package: asariR
+Title: R Reimplementation Skeleton for asari Core Algorithms
+Version: 0.0.0.9000
+Authors@R:
+    person("Zidong", "Xu", email = "zidong.xu@mail.mcgill.ca", role = c("aut", "cre"))
+Description: A study-oriented R reimplementation skeleton for selected asari
+    LC-MS metabolomics preprocessing algorithms.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Imports:
+    stats
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
