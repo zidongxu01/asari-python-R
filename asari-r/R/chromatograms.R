@@ -107,8 +107,22 @@ extract_mass_tracks <- function(infile,
   )
 }
 
-extract_single_track_full_rt_length <- function(bin, rt_length) {
-  stop("Not implemented yet: extract_single_track_full_rt_length")
+extract_single_track_full_rt_length <- function(bin,
+                                                rt_length,
+                                                intensity_data_type = numeric) {
+  mzs <- vapply(bin, function(x) x[[1L]], numeric(1))
+  ints <- vapply(bin, function(x) x[[3L]], numeric(1))
+  mz <- 0.5 * (stats::median(mzs) + mzs[[which.max(ints)]])
+  intensity_track <- intensity_data_type(rt_length)
+
+  for (r in bin) {
+    scan_index <- r[[2L]] + 1L
+    intensity_track[[scan_index]] <- max(
+      r[[3L]], intensity_track[[scan_index]]
+    )
+  }
+
+  list(mz, intensity_track)
 }
 
 bin_to_mass_tracks <- function(bin_data_tuples, rt_length, mz_tolerance_ppm = 5) {
