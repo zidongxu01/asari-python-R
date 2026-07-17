@@ -392,6 +392,49 @@ all_mass_paired_mapping <- function(list1, list2, std_ppm = 5) {
   )
 }
 
+# 在可靠 m/z 配对的基础上估计 list2 的整体质量偏移，必要时校正后重新配对。
+#
+# 函数先调用 mass_paired_mapping() 获得高可信配对及其相对偏移，
+# 再以平均相对偏移作为 list2 的校正比例。为与 Python 原版完全对齐，
+# 只有正方向偏移严格大于 correction_tolerance_ppm 时才执行校正；
+# 负方向偏移不触发校正。返回 R 1-based 配对和校正前估计的偏移比例。
+mass_paired_mapping_with_correction <- function(
+    list1,
+    list2,
+    std_ppm = 5,
+    correction_tolerance_ppm = 1) {
+  if (!is.numeric(list1) || any(!is.finite(list1)) ||
+      !is.numeric(list2) || any(!is.finite(list2))) {
+    stop("list1 and list2 must be finite numeric vectors.", call. = FALSE)
+  }
+  if (length(std_ppm) != 1L || !is.finite(std_ppm) || std_ppm < 0) {
+    stop("std_ppm must be one finite, non-negative number.", call. = FALSE)
+  }
+  if (length(correction_tolerance_ppm) != 1L ||
+      !is.finite(correction_tolerance_ppm) ||
+      correction_tolerance_ppm < 0) {
+    stop(
+      "correction_tolerance_ppm must be one finite, non-negative number.",
+      call. = FALSE
+    )
+  }
+
+  initial_mapping <- mass_paired_mapping(list1, list2, std_ppm)
+  mapped <- initial_mapping$mapped
+  correction_ratio <- mean(initial_mapping$ratio_deltas)
+
+  if (isTRUE(correction_ratio > correction_tolerance_ppm * 1e-6)) {
+    corrected_list2 <- list2 / (1 + correction_ratio)
+    mapped <- mass_paired_mapping(
+      list1,
+      corrected_list2,
+      std_ppm
+    )$mapped
+  }
+
+  list(mapped = mapped, correction_ratio = correction_ratio)
+}
+
 # 根据 m/z seeds 将数据点分配到最近聚类；当前仍是待实现骨架。
 nn_cluster_by_mz_seeds <- function(datatuples, mz_tolerance, presorted = FALSE) {
   stop("Not implemented yet: nn_cluster_by_mz_seeds")

@@ -231,3 +231,78 @@ test_that("all_mass_paired_mapping validates inputs", {
     "non-negative"
   )
 })
+
+test_that("mass mapping correction can recover a new positive-shift match", {
+  result <- mass_paired_mapping_with_correction(
+    c(100, 200, 300),
+    c(100.0004, 200.0008, 300.0018),
+    std_ppm = 5,
+    correction_tolerance_ppm = 1
+  )
+
+  expect_equal(
+    result$mapped,
+    list(c(1L, 1L), c(2L, 2L), c(3L, 3L))
+  )
+  expect_equal(
+    result$correction_ratio,
+    3.999984000054678e-6,
+    tolerance = 1e-16
+  )
+})
+
+test_that("mass mapping correction leaves a sub-threshold shift unchanged", {
+  result <- mass_paired_mapping_with_correction(
+    c(100, 200),
+    c(100.00005, 200.0001),
+    correction_tolerance_ppm = 1
+  )
+
+  expect_equal(result$mapped, list(c(1L, 1L), c(2L, 2L)))
+  expect_equal(
+    result$correction_ratio,
+    4.999997500167233e-7,
+    tolerance = 1e-17
+  )
+})
+
+test_that("mass mapping correction preserves Python negative-shift behavior", {
+  result <- mass_paired_mapping_with_correction(
+    c(100, 200),
+    c(99.9997, 199.9994),
+    correction_tolerance_ppm = 1
+  )
+
+  expect_equal(result$mapped, list(c(1L, 1L), c(2L, 2L)))
+  expect_equal(
+    result$correction_ratio,
+    -2.999999999957481e-6,
+    tolerance = 1e-16
+  )
+})
+
+test_that("mass mapping correction returns NaN when there are no anchors", {
+  result <- mass_paired_mapping_with_correction(100, 200)
+
+  expect_equal(result$mapped, list())
+  expect_true(is.nan(result$correction_ratio))
+})
+
+test_that("mass mapping correction validates inputs", {
+  expect_error(
+    mass_paired_mapping_with_correction("100", 100),
+    "numeric vectors"
+  )
+  expect_error(
+    mass_paired_mapping_with_correction(100, 100, std_ppm = -1),
+    "std_ppm"
+  )
+  expect_error(
+    mass_paired_mapping_with_correction(
+      100,
+      100,
+      correction_tolerance_ppm = -1
+    ),
+    "correction_tolerance_ppm"
+  )
+})
