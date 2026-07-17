@@ -309,6 +309,89 @@ complete_mass_paired_mapping <- function(list1, list2, std_ppm = 5) {
   )
 }
 
+# 返回查询 m/z 在 Centurion 索引中 ppm 容差内的全部候选。
+#
+# 这是 all_mass_paired_mapping() 的内部搜索辅助函数。索引以
+# floor(m/z * 100) 作为桶，查询时检查当前桶及左右相邻桶。
+.find_all_mzmatches_centurion_indexed_list <- function(
+    query_mz,
+    mz_centurion_tree,
+    limit_ppm = 5) {
+  query_key <- as.integer(query_mz * 100)
+  mz_tolerance <- query_mz * limit_ppm * 1e-6
+  results <- list()
+
+  for (bucket_key in (query_key - 1L):(query_key + 1L)) {
+    bucket <- mz_centurion_tree[[as.character(bucket_key)]]
+    if (is.null(bucket)) {
+      next
+    }
+
+    for (entry in bucket) {
+      if (abs(entry[[1L]] - query_mz) < mz_tolerance) {
+        results[[length(results) + 1L]] <- entry
+      }
+    }
+  }
+
+  results
+}
+
+# 返回两个 m/z 列表之间 ppm 容差内的全部候选配对。
+#
+# 与前两个配对函数不同，这里不强制一对一，也不在多个候选中只选最近值。
+# 一个 list1 m/z 可以对应多个 list2 m/z，反之亦然。函数返回全部
+# 1-based 配对位置，以及两个列表中完全没有参与匹配的位置。
+all_mass_paired_mapping <- function(list1, list2, std_ppm = 5) {
+  if (!is.numeric(list1) || any(!is.finite(list1)) ||
+      !is.numeric(list2) || any(!is.finite(list2))) {
+    stop("list1 and list2 must be finite numeric vectors.", call. = FALSE)
+  }
+  if (length(std_ppm) != 1L || !is.finite(std_ppm) || std_ppm < 0) {
+    stop("std_ppm must be one finite, non-negative number.", call. = FALSE)
+  }
+
+  # 构建与 mass2chem build_centurion_tree_mzlist() 相同概念的百分之一 m/z 索引。
+  mz_centurion_tree <- list()
+  for (ii in seq_along(list1)) {
+    bucket_key <- as.character(as.integer(list1[[ii]] * 100))
+    mz_centurion_tree[[bucket_key]] <- c(
+      mz_centurion_tree[[bucket_key]],
+      list(c(list1[[ii]], ii))
+    )
+  }
+
+  mapped <- list()
+  for (ii in seq_along(list2)) {
+    matches <- .find_all_mzmatches_centurion_indexed_list(
+      list2[[ii]],
+      mz_centurion_tree,
+      limit_ppm = std_ppm
+    )
+
+    for (match in matches) {
+      mapped[[length(mapped) + 1L]] <- c(as.integer(match[[2L]]), ii)
+    }
+  }
+
+  mapped_list1 <- if (length(mapped) == 0L) {
+    integer()
+  } else {
+    vapply(mapped, `[[`, integer(1), 1L)
+  }
+  mapped_list2 <- if (length(mapped) == 0L) {
+    integer()
+  } else {
+    vapply(mapped, `[[`, integer(1), 2L)
+  }
+
+  list(
+    mapped = mapped,
+    list1_unmapped = setdiff(seq_along(list1), mapped_list1),
+    list2_unmapped = setdiff(seq_along(list2), mapped_list2)
+  )
+}
+
 # 根据 m/z seeds 将数据点分配到最近聚类；当前仍是待实现骨架。
 nn_cluster_by_mz_seeds <- function(datatuples, mz_tolerance, presorted = FALSE) {
   stop("Not implemented yet: nn_cluster_by_mz_seeds")

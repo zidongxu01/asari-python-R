@@ -172,3 +172,62 @@ test_that("complete_mass_paired_mapping validates inputs", {
     "non-negative"
   )
 })
+
+test_that("all_mass_paired_mapping keeps every candidate within tolerance", {
+  result <- all_mass_paired_mapping(
+    c(100.0000, 100.0004, 200.0000),
+    c(100.0002, 300.0000),
+    std_ppm = 5
+  )
+
+  expect_equal(result$mapped, list(c(1L, 1L), c(2L, 1L)))
+  expect_equal(result$list1_unmapped, 3L)
+  expect_equal(result$list2_unmapped, 2L)
+})
+
+test_that("all_mass_paired_mapping searches adjacent Centurion buckets", {
+  result <- all_mass_paired_mapping(99.9999, 100.0001, std_ppm = 5)
+
+  expect_equal(result$mapped, list(c(1L, 1L)))
+  expect_equal(result$list1_unmapped, integer())
+  expect_equal(result$list2_unmapped, integer())
+})
+
+test_that("all_mass_paired_mapping uses a strict ppm tolerance", {
+  result <- all_mass_paired_mapping(
+    c(100.00049, 100.00051),
+    100,
+    std_ppm = 5
+  )
+
+  expect_equal(result$mapped, list(c(1L, 1L)))
+  expect_equal(result$list1_unmapped, 2L)
+  expect_equal(result$list2_unmapped, integer())
+})
+
+test_that("all_mass_paired_mapping returns unmatched positions", {
+  expect_equal(
+    all_mass_paired_mapping(c(100, 200), c(300, 400)),
+    list(
+      mapped = list(),
+      list1_unmapped = c(1L, 2L),
+      list2_unmapped = c(1L, 2L)
+    )
+  )
+  expect_equal(
+    all_mass_paired_mapping(numeric(), numeric()),
+    list(
+      mapped = list(),
+      list1_unmapped = integer(),
+      list2_unmapped = integer()
+    )
+  )
+})
+
+test_that("all_mass_paired_mapping validates inputs", {
+  expect_error(all_mass_paired_mapping("100", 100), "numeric vectors")
+  expect_error(
+    all_mass_paired_mapping(100, 100, std_ppm = -1),
+    "non-negative"
+  )
+})
