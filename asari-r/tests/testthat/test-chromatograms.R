@@ -23,3 +23,13 @@ test_that("bin_to_mass_tracks builds one track for a narrow mz range", {
   expect_equal(tracks[[1]][[1]], 100.00015)
   expect_equal(tracks[[1]][[2]], c(10, 20, 0))
 })
+
+test_that("merge_two_mass_tracks averages mz and sums intensities", {
+  track_1 <- list(100.0001, c(10, 20, 0, 5))
+  track_2 <- list(100.0003, c(0, 15, 30, 5))
+
+  merged <- merge_two_mass_tracks(track_1, track_2)
+
+  expect_equal(merged[[1]], 100.0002)
+  expect_equal(merged[[2]], c(10, 35, 30, 10))
+})

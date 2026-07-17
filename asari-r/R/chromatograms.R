@@ -165,6 +165,15 @@ build_chromatogram_by_mz_clustering <- function(bin_data_tuples,
   )
 }
 
+# 合并两条属于同一离子信号的 mass tracks。
+# 两条 track 的代表 m/z 取平均，完整 RT 范围内的强度逐位置相加。
+merge_two_mass_tracks <- function(t1, t2) {
+  list(
+    0.5 * (t1[[1L]] + t2[[1L]]),
+    t1[[2L]] + t2[[2L]]
+  )
+}
+
 get_thousandth_bins <- function(mz_tree,
                                 mz_tolerance_ppm = 5,
                                 min_timepoints = 5,
