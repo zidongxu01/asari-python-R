@@ -204,6 +204,111 @@ mass_paired_mapping <- function(list1, list2, std_ppm = 5) {
   list(mapped = mapped, ratio_deltas = ratio_deltas)
 }
 
+# 在两个 m/z 列表之间尽可能完成一对一匹配。
+#
+# 函数先收集来自不同列表且距离小于 ppm 容差的相邻候选对。
+# 如果同一个 m/z 出现多个候选，保留绝对 m/z 距离最小的一对。
+# 返回成功匹配的 1-based 原始位置，以及两个列表各自未匹配的位置。
+complete_mass_paired_mapping <- function(list1, list2, std_ppm = 5) {
+  if (!is.numeric(list1) || any(!is.finite(list1)) ||
+      !is.numeric(list2) || any(!is.finite(list2))) {
+    stop("list1 and list2 must be finite numeric vectors.", call. = FALSE)
+  }
+  if (length(std_ppm) != 1L || !is.finite(std_ppm) || std_ppm < 0) {
+    stop("std_ppm must be one finite, non-negative number.", call. = FALSE)
+  }
+
+  list1_count <- length(list1)
+  list2_count <- length(list2)
+  combined_count <- list1_count + list2_count
+  candidates <- list()
+
+  if (combined_count >= 2L) {
+    combined_mz <- c(list1, list2)
+    list_origin <- c(rep(1L, list1_count), rep(2L, list2_count))
+    original_index <- c(seq_along(list1), seq_along(list2))
+
+    # Python tuple 的排序依次使用 m/z、列表来源和原始索引。
+    sorted_order <- order(combined_mz, list_origin, original_index)
+    combined_mz <- combined_mz[sorted_order]
+    list_origin <- list_origin[sorted_order]
+    original_index <- original_index[sorted_order]
+
+    for (ii in 2:combined_count) {
+      if (list_origin[[ii]] != list_origin[[ii - 1L]]) {
+        tolerance <- combined_mz[[ii]] * std_ppm * 1e-6
+        distance <- combined_mz[[ii]] - combined_mz[[ii - 1L]]
+
+        if (distance < tolerance) {
+          if (list_origin[[ii]] > list_origin[[ii - 1L]]) {
+            candidates[[length(candidates) + 1L]] <- list(
+              list1_index = original_index[[ii - 1L]],
+              distance = distance,
+              list2_index = original_index[[ii]]
+            )
+          } else {
+            candidates[[length(candidates) + 1L]] <- list(
+              list1_index = original_index[[ii]],
+              distance = distance,
+              list2_index = original_index[[ii - 1L]]
+            )
+          }
+        }
+      }
+    }
+  }
+
+  # 按 Python 版的顺序化冲突处理：共享任一原始索引时，距离更小者获胜。
+  selected <- list()
+  if (length(candidates) > 0L) {
+    staged <- candidates[[1L]]
+
+    if (length(candidates) > 1L) {
+      for (ii in 2:length(candidates)) {
+        current <- candidates[[ii]]
+        has_conflict <-
+          current$list1_index == staged$list1_index ||
+          current$list2_index == staged$list2_index
+
+        if (has_conflict) {
+          if (current$distance < staged$distance) {
+            staged <- current
+          }
+        } else {
+          selected[[length(selected) + 1L]] <- staged
+          staged <- current
+        }
+      }
+    }
+
+    selected[[length(selected) + 1L]] <- staged
+  }
+
+  mapped <- lapply(
+    selected,
+    function(candidate) {
+      c(candidate$list1_index, candidate$list2_index)
+    }
+  )
+
+  mapped_list1 <- if (length(mapped) == 0L) {
+    integer()
+  } else {
+    vapply(mapped, `[[`, integer(1), 1L)
+  }
+  mapped_list2 <- if (length(mapped) == 0L) {
+    integer()
+  } else {
+    vapply(mapped, `[[`, integer(1), 2L)
+  }
+
+  list(
+    mapped = mapped,
+    list1_unmapped = setdiff(seq_along(list1), mapped_list1),
+    list2_unmapped = setdiff(seq_along(list2), mapped_list2)
+  )
+}
+
 # 根据 m/z seeds 将数据点分配到最近聚类；当前仍是待实现骨架。
 nn_cluster_by_mz_seeds <- function(datatuples, mz_tolerance, presorted = FALSE) {
   stop("Not implemented yet: nn_cluster_by_mz_seeds")

@@ -118,3 +118,57 @@ test_that("mass_paired_mapping handles empty lists and validates inputs", {
   expect_error(mass_paired_mapping("100", 100), "numeric vectors")
   expect_error(mass_paired_mapping(100, 100, std_ppm = -1), "non-negative")
 })
+
+test_that("complete_mass_paired_mapping chooses the closest candidate", {
+  result <- complete_mass_paired_mapping(
+    c(100.0000, 150.0000, 200.0000),
+    c(100.0002, 100.0003, 150.0004, 300.0000),
+    std_ppm = 5
+  )
+
+  expect_equal(result$mapped, list(c(1L, 1L), c(2L, 3L)))
+  expect_equal(result$list1_unmapped, 3L)
+  expect_equal(result$list2_unmapped, c(2L, 4L))
+})
+
+test_that("complete_mass_paired_mapping resolves a shared-list2 conflict", {
+  result <- complete_mass_paired_mapping(
+    c(99.9998, 100.0001),
+    100,
+    std_ppm = 5
+  )
+
+  expect_equal(result$mapped, list(c(2L, 1L)))
+  expect_equal(result$list1_unmapped, 1L)
+  expect_equal(result$list2_unmapped, integer())
+})
+
+test_that("complete_mass_paired_mapping returns all unmatched positions", {
+  expect_equal(
+    complete_mass_paired_mapping(c(100, 200), c(300, 400)),
+    list(
+      mapped = list(),
+      list1_unmapped = c(1L, 2L),
+      list2_unmapped = c(1L, 2L)
+    )
+  )
+  expect_equal(
+    complete_mass_paired_mapping(numeric(), 100),
+    list(
+      mapped = list(),
+      list1_unmapped = integer(),
+      list2_unmapped = 1L
+    )
+  )
+})
+
+test_that("complete_mass_paired_mapping validates inputs", {
+  expect_error(
+    complete_mass_paired_mapping("100", 100),
+    "numeric vectors"
+  )
+  expect_error(
+    complete_mass_paired_mapping(100, 100, std_ppm = -1),
+    "non-negative"
+  )
+})
