@@ -153,6 +153,18 @@ bin_to_mass_tracks <- function(bin_data_tuples, rt_length, mz_tolerance_ppm = 5)
   })
 }
 
+# 把需要拆分的 m/z 数据交给基于 m/z seeds 的最近邻聚类函数。
+# rt_length 目前不参与计算，仅保留以对应 Python 函数签名。
+build_chromatogram_by_mz_clustering <- function(bin_data_tuples,
+                                                rt_length,
+                                                mz_tolerance) {
+  nn_cluster_by_mz_seeds(
+    bin_data_tuples,
+    mz_tolerance,
+    presorted = FALSE
+  )
+}
+
 get_thousandth_bins <- function(mz_tree,
                                 mz_tolerance_ppm = 5,
                                 min_timepoints = 5,
