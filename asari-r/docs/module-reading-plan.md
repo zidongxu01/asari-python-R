@@ -17,7 +17,7 @@ Questions to preserve:
 
 ## 2. mass_functions.py
 
-Status: next target.
+Status: all top-level functions ported and checked against Python/SciPy behavior.
 
 Questions:
 
@@ -36,4 +36,3 @@ Questions:
 - How is noise estimated?
 - How are peak boundaries chosen?
 - What peak-shape checks are used?
-

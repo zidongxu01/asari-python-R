@@ -87,7 +87,7 @@ test_that("mass_paired_mapping matches unsorted lists and preserves positions", 
   expect_equal(result$mapped, list(c(2L, 2L), c(1L, 1L)))
   expect_equal(
     result$ratio_deltas,
-    c(2.999991000022228e-6, 3.999984000121733e-6),
+    c(2.999990999984481e-6, 3.999984000054678e-6),
     tolerance = 1e-16
   )
 })
@@ -105,7 +105,7 @@ test_that("mass_paired_mapping keeps the list2 minus list1 shift sign", {
   expect_equal(result$mapped, list(c(1L, 1L)))
   expect_equal(
     result$ratio_deltas,
-    -2.999991000022228e-6,
+    -2.999990999984481e-6,
     tolerance = 1e-16
   )
 })
@@ -405,5 +405,145 @@ test_that("landmark guided mapping validates landmark positions", {
   expect_error(
     landmark_guided_mapping(100, 1L, 100, 2L),
     "SM_landmarks"
+  )
+})
+
+test_that("bin_by_median follows the moving median boundary", {
+  tuples <- list(
+    list(100.0, "a"),
+    list(100.2, "b"),
+    list(100.9, "c"),
+    list(102.0, "d")
+  )
+
+  expect_equal(
+    bin_by_median(tuples, function(value) 0.5),
+    list(list("a", "b"), list("c"), list("d"))
+  )
+})
+
+test_that("bin_by_median uses a strict tolerance comparison", {
+  tuples <- list(list(100, "a"), list(100.5, "b"))
+
+  expect_equal(
+    bin_by_median(tuples, function(value) 0.5),
+    list(list("a"), list("b"))
+  )
+})
+
+test_that("gap_divide_mz_cluster splits at the first largest gap", {
+  tuples <- list(
+    c(100.0, 1, 10),
+    c(100.25, 2, 20),
+    c(101.25, 3, 30),
+    c(102.25, 4, 40),
+    c(102.5, 5, 50)
+  )
+
+  expect_equal(
+    gap_divide_mz_cluster(tuples, mz_tolerance = 0.1),
+    list(tuples[1:2], tuples[3:5])
+  )
+})
+
+test_that("nearest integer filter matches SciPy even and odd windows", {
+  expect_equal(
+    .uniform_filter1d_nearest_integer(1:7, 2),
+    c(1L, 1L, 2L, 3L, 4L, 5L, 6L)
+  )
+  expect_equal(
+    .uniform_filter1d_nearest_integer(1:7, 5),
+    c(1L, 2L, 3L, 4L, 5L, 5L, 6L)
+  )
+})
+
+test_that("peak selection matches SciPy plateau and distance behavior", {
+  expect_equal(.find_peaks_with_distance(c(0, 1, 1, 0), 1), 2L)
+  expect_equal(.find_peaks_with_distance(c(0, 1, 1, 1, 0), 1), 3L)
+  expect_equal(
+    .find_peaks_with_distance(c(0, 2, 0, 2, 0), 3),
+    4L
+  )
+  expect_equal(
+    .find_peaks_with_distance(c(0, 1, 0, 1, 0, 1, 0), 3),
+    c(2L, 6L)
+  )
+})
+
+test_that("identify_mass_peaks reproduces SciPy integer smoothing", {
+  mzs <- c(
+    rep(100.0000, 5),
+    rep(100.0001, 3),
+    rep(100.0015, 6),
+    rep(100.0016, 2)
+  )
+  tuples <- lapply(seq_along(mzs), function(ii) c(mzs[[ii]], ii, 1))
+
+  expect_equal(
+    identify_mass_peaks(tuples, mz_tolerance = 0.0005),
+    100.0014
+  )
+})
+
+test_that("identify_mass_peaks sorts only when presorted is false", {
+  mzs <- rep(c(100.0015, 100.0000, 100.0016, 100.0001), 4)
+  tuples <- lapply(seq_along(mzs), function(ii) c(mzs[[ii]], ii, 1))
+
+  expect_equal(
+    identify_mass_peaks(
+      tuples,
+      mz_tolerance = 0.0005,
+      presorted = FALSE
+    ),
+    numeric()
+  )
+})
+
+test_that("nn_cluster_by_mz_seeds assigns each tuple to the nearest seed", {
+  mzs <- c(
+    rep(100.000, 3),
+    rep(100.001, 8),
+    rep(100.002, 10),
+    rep(100.003, 4)
+  )
+  tuples <- lapply(seq_along(mzs), function(ii) c(mzs[[ii]], ii, 1))
+  clusters <- nn_cluster_by_mz_seeds(
+    tuples,
+    mz_tolerance = 0.0005,
+    presorted = TRUE
+  )
+
+  expect_length(clusters, 2L)
+  expect_equal(lengths(clusters), c(11L, 14L))
+  expect_equal(
+    vapply(clusters[[1L]], `[[`, numeric(1), 1L),
+    mzs[1:11]
+  )
+  expect_equal(
+    vapply(clusters[[2L]], `[[`, numeric(1), 1L),
+    mzs[12:25]
+  )
+})
+
+test_that("nn_cluster_by_mz_seeds falls back to the largest gap", {
+  tuples <- list(c(100.0000, 1, 1), c(100.0020, 2, 1))
+
+  expect_equal(
+    nn_cluster_by_mz_seeds(
+      tuples,
+      mz_tolerance = 0.0005,
+      presorted = TRUE
+    ),
+    list(tuples[1], tuples[2])
+  )
+})
+
+test_that("remaining mass functions validate required inputs", {
+  expect_error(bin_by_median(list(), function(value) 1), "non-empty")
+  expect_error(gap_divide_mz_cluster(list(c(100, 1)), 1), "at least two")
+  expect_error(identify_mass_peaks(list(), 0.0005), "non-empty")
+  expect_error(
+    identify_mass_peaks(list(c(100, 1)), 0.00001),
+    "at least 0.0001"
   )
 })

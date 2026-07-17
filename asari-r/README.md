@@ -1,7 +1,6 @@
 # asariR
 
-This is a study-oriented R reimplementation skeleton for the core parts of
-asari.
+This is a study-oriented R reimplementation of selected core parts of asari.
 
 The goal is not to translate every Python line directly. The goal is to keep a
 clear file-by-file correspondence for the core algorithm modules, so each R file
@@ -39,8 +38,6 @@ Not the first priority:
 
 ## Suggested Order
 
-1. Fill `R/chromatograms.R` from the parts already studied.
-2. Fill `R/mass_functions.R`, especially m/z clustering behavior.
-3. Fill `R/peaks.R`, especially real peak vs noise decisions.
-4. Add tests after each function or small group of functions.
-
+1. Connect the completed `R/mass_functions.R` behavior to constructors and the MassGrid.
+2. Complete `R/peaks.R`, especially real peak vs noise decisions.
+3. Add module-level and end-to-end comparisons after each integration step.

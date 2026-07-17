@@ -1,5 +1,7 @@
 # 对应 asari/mass_functions.py 的质量操作函数。
 # 本文件放置 m/z 距离检查、选择性评分、聚类和基于 seed 的分组逻辑。
+# 兼容约定：Python 0-based 位置转为 R 1-based，tuple 返回值转为命名 list，
+# Python None 转为 NA_integer_；有效科学输入下保留 Python 的计算、排序和边界规则。
 
 # 将二元 tuple 列表展平，并且每个值只保留一次。
 #
@@ -598,12 +600,215 @@ landmark_guided_mapping <- function(
   )
 }
 
-# 根据 m/z seeds 将数据点分配到最近聚类；当前仍是待实现骨架。
-nn_cluster_by_mz_seeds <- function(datatuples, mz_tolerance, presorted = FALSE) {
-  stop("Not implemented yet: nn_cluster_by_mz_seeds")
+# 按当前分箱中位数和用户提供的容差函数，将已排序的 (value, object) 分成连续箱。
+#
+# 每个新 value 都与当前最后一箱的 value 中位数比较。距离严格小于
+# func_tolerance(value) 时放入当前箱，否则开始新箱。返回时只保留每个 tuple 的 object。
+bin_by_median <- function(List_of_tuples, func_tolerance) {
+  if (!is.list(List_of_tuples) || length(List_of_tuples) == 0L) {
+    stop("List_of_tuples must be a non-empty list.", call. = FALSE)
+  }
+  if (any(vapply(List_of_tuples, length, integer(1)) < 2L)) {
+    stop("Each tuple must contain a value and an object.", call. = FALSE)
+  }
+  if (!is.function(func_tolerance)) {
+    stop("func_tolerance must be a function.", call. = FALSE)
+  }
+
+  bins <- list(list(List_of_tuples[[1L]]))
+  if (length(List_of_tuples) > 1L) {
+    for (ii in 2:length(List_of_tuples)) {
+      current <- List_of_tuples[[ii]]
+      current_bin <- bins[[length(bins)]]
+      current_median <- stats::median(
+        vapply(current_bin, function(tuple) tuple[[1L]], numeric(1))
+      )
+
+      if (current[[1L]] - current_median < func_tolerance(current[[1L]])) {
+        bins[[length(bins)]][[length(current_bin) + 1L]] <- current
+      } else {
+        bins[[length(bins) + 1L]] <- list(current)
+      }
+    }
+  }
+
+  lapply(
+    bins,
+    function(bin) lapply(bin, `[[`, 2L)
+  )
 }
 
-# 从 m/z 数据中识别可用作聚类中心的质量峰；当前仍是待实现骨架。
-identify_mass_peaks <- function(datatuples, mz_tolerance) {
-  stop("Not implemented yet: identify_mass_peaks")
+# 在已排序 m/z tuple 中找到最大相邻间隔，并从该位置将数据分成左右两组。
+#
+# mz_tolerance 参数与 Python 原版一样保留在函数接口中，但当前算法并不使用它。
+# 如果有多个相同的最大间隔，与 numpy.argmax() 一样选择第一个。
+gap_divide_mz_cluster <- function(bin_data_tuples, mz_tolerance) {
+  if (!is.list(bin_data_tuples) || length(bin_data_tuples) < 2L) {
+    stop("bin_data_tuples must contain at least two tuples.", call. = FALSE)
+  }
+  if (any(vapply(bin_data_tuples, length, integer(1)) < 1L)) {
+    stop("Each tuple must contain an m/z value.", call. = FALSE)
+  }
+
+  # 按第一个最大 m/z 间隔分割列表，对应 Python 内嵌函数 __divide_by_largest_gap__()。
+  divide_by_largest_gap <- function(tuple_list) {
+    mzs <- vapply(tuple_list, function(tuple) tuple[[1L]], numeric(1))
+    split_position <- which.max(diff(mzs)) + 1L
+    list(
+      tuple_list[seq_len(split_position - 1L)],
+      tuple_list[split_position:length(tuple_list)]
+    )
+  }
+
+  divide_by_largest_gap(bin_data_tuples)
+}
+
+# 用最近边界扩展复制 SciPy uniform_filter1d(size, mode="nearest") 的一维均值滤波。
+#
+# asari 向 SciPy 传入整数计数，SciPy 会保留整数 dtype 并截断小数部分；
+# 这里显式使用 as.integer() 保留该行为。偶数窗口向左多取一个位置。
+.uniform_filter1d_nearest_integer <- function(values, size) {
+  if (length(values) == 0L || length(size) != 1L || size < 1L) {
+    stop("values must be non-empty and size must be positive.", call. = FALSE)
+  }
+
+  size <- as.integer(size)
+  left_width <- size %/% 2L
+  right_width <- size - left_width - 1L
+  padded <- c(
+    rep(values[[1L]], left_width),
+    values,
+    rep(values[[length(values)]], right_width)
+  )
+  cumulative <- c(0, cumsum(padded))
+  value_count <- length(values)
+  window_sums <- cumulative[(size + 1L):(size + value_count)] -
+    cumulative[seq_len(value_count)]
+
+  as.integer(window_sums / size)
+}
+
+# 复制 scipy.signal.find_peaks(values, distance=...) 在 asari 所用参数下的峰位置选择。
+#
+# 端点不作为峰；平顶峰返回中点并向下取整。峰距离冲突时先保留较高峰，
+# 等高时按 SciPy 的顺序先处理较右侧峰，最后将保留位置按升序返回。
+.find_peaks_with_distance <- function(values, distance) {
+  if (length(distance) != 1L || !is.finite(distance) || distance < 1) {
+    stop("distance must be at least 1.", call. = FALSE)
+  }
+  value_count <- length(values)
+  if (value_count < 3L) {
+    return(integer())
+  }
+
+  candidates <- integer()
+  ii <- 2L
+  while (ii <= value_count - 1L) {
+    if (values[[ii]] > values[[ii - 1L]]) {
+      plateau_end <- ii
+      while (plateau_end < value_count &&
+             values[[plateau_end + 1L]] == values[[ii]]) {
+        plateau_end <- plateau_end + 1L
+      }
+
+      if (plateau_end < value_count &&
+          values[[plateau_end]] > values[[plateau_end + 1L]]) {
+        candidates <- c(candidates, (ii + plateau_end) %/% 2L)
+      }
+      ii <- plateau_end + 1L
+    } else {
+      ii <- ii + 1L
+    }
+  }
+
+  if (length(candidates) <= 1L) {
+    return(candidates)
+  }
+
+  minimum_distance <- ceiling(distance)
+  priority_order <- order(-values[candidates], -candidates)
+  kept <- integer()
+  for (candidate in candidates[priority_order]) {
+    if (length(kept) == 0L ||
+        all(abs(candidate - kept) >= minimum_distance)) {
+      kept <- c(kept, candidate)
+    }
+  }
+
+  sort(kept)
+}
+
+# 将 m/z tuple 投影到万分之一 m/z 整数网格，并识别可作为聚类 seeds 的质量峰。
+#
+# 函数逐步复制 Python 原版：m/z 乘 10000 后截断为整数、计算每个网格的频数、
+# 使用 nearest 模式整数均值滤波，再按 tol4 最小距离找峰。返回值按 0.0001 m/z 还原。
+identify_mass_peaks <- function(
+    bin_data_tuples,
+    mz_tolerance,
+    presorted = TRUE) {
+  if (!is.list(bin_data_tuples) || length(bin_data_tuples) == 0L) {
+    stop("bin_data_tuples must be a non-empty list.", call. = FALSE)
+  }
+  if (any(vapply(bin_data_tuples, length, integer(1)) < 1L)) {
+    stop("Each tuple must contain an m/z value.", call. = FALSE)
+  }
+  if (length(mz_tolerance) != 1L ||
+      !is.finite(mz_tolerance) ||
+      mz_tolerance <= 0) {
+    stop("mz_tolerance must be one finite, positive number.", call. = FALSE)
+  }
+
+  mz4 <- as.integer(
+    vapply(bin_data_tuples, function(tuple) tuple[[1L]], numeric(1)) * 10000
+  )
+  if (!presorted) {
+    mz4 <- sort(mz4)
+  }
+
+  tol4 <- as.integer(mz_tolerance * 10000)
+  if (tol4 < 1L) {
+    stop("mz_tolerance must correspond to at least 0.0001 m/z.", call. = FALSE)
+  }
+  filter_size <- max(2L, as.integer(0.5 * tol4))
+  positioned <- seq.int(mz4[[1L]], mz4[[length(mz4)]])
+  count_indices <- mz4 - positioned[[1L]] + 1L
+  counts <- tabulate(count_indices, nbins = length(positioned))
+  filtered_counts <- .uniform_filter1d_nearest_integer(
+    counts,
+    size = filter_size
+  )
+  peak_indices <- .find_peaks_with_distance(
+    filtered_counts,
+    distance = tol4
+  )
+
+  0.0001 * positioned[peak_indices]
+}
+
+# 根据 identify_mass_peaks() 识别的 m/z seeds，将每个 tuple 分配给距离最近的 seed。
+#
+# 距离相同时选择位置更靠前的 seed，各聚类内保留原 tuple 顺序。
+# 如果没有识别到 seed，与 Python 原版一样改用 gap_divide_mz_cluster() 在最大 m/z 间隔处分成两组。
+nn_cluster_by_mz_seeds <- function(
+    bin_data_tuples,
+    mz_tolerance,
+    presorted = TRUE) {
+  mz_seeds <- identify_mass_peaks(
+    bin_data_tuples,
+    mz_tolerance,
+    presorted = presorted
+  )
+
+  if (length(mz_seeds) > 0L) {
+    clusters <- lapply(mz_seeds, function(seed) list())
+    for (tuple in bin_data_tuples) {
+      distances <- abs(tuple[[1L]] - mz_seeds)
+      cluster_index <- which.min(distances)
+      clusters[[cluster_index]][[length(clusters[[cluster_index]]) + 1L]] <-
+        tuple
+    }
+    clusters
+  } else {
+    gap_divide_mz_cluster(bin_data_tuples, mz_tolerance)
+  }
 }
