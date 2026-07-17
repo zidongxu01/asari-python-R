@@ -1,13 +1,10 @@
-# Functions corresponding to asari/mass_functions.py.
-#
-# This file should contain m/z distance checks, clustering, and seed-based
-# splitting used by chromatograms.R.
+# 对应 asari/mass_functions.py 的质量操作函数。
+# 本文件放置 m/z 距离检查、选择性评分、聚类和基于 seed 的分组逻辑。
 
-# Flatten a list of two-element tuples and retain each value once.
+# 将二元 tuple 列表展平，并且每个值只保留一次。
 #
-# This follows the Python helper's traversal order: all first elements are
-# collected before all second elements. Unlike Python's set(), unique() keeps
-# the first occurrence, so the R result has deterministic ordering.
+# 遍历顺序与 Python 版一致：先收集所有第一个元素，再收集所有第二个元素。
+# R 的 unique() 会保留首次出现的顺序，因此返回顺序比 Python set() 更稳定。
 flatten_tuplelist <- function(tuple_list) {
   if (!is.list(tuple_list)) {
     stop("tuple_list must be a list.", call. = FALSE)
@@ -24,11 +21,10 @@ flatten_tuplelist <- function(tuple_list) {
   unique(unlist(c(first_elements, second_elements), use.names = FALSE))
 }
 
-# Find adjacent sorted m/z values separated by less than a ppm tolerance.
+# 在已按升序排列的 m/z 中，找出距离小于 ppm 容差的相邻值。
 #
-# The Python function returns zero-based pairs (ii, ii - 1). This R port
-# returns the corresponding one-based positions so callers can use each pair
-# directly to index R vectors and lists.
+# Python 版返回从 0 开始的 (ii, ii - 1)；这里返回对应的 R 1-based 位置，
+# 使调用者可以直接用它索引 R 向量或列表。
 check_close_mzs <- function(mzs, mz_tolerance_ppm = 5) {
   if (!is.numeric(mzs) || any(!is.finite(mzs))) {
     stop("mzs must be a finite numeric vector.", call. = FALSE)
@@ -60,10 +56,93 @@ check_close_mzs <- function(mzs, mz_tolerance_ppm = 5) {
   close_pairs
 }
 
+# 计算排序 m/z 列表中每个 m/z 的质量选择性（mSelectivity）。
+#
+# 每个分数位于 0 到 1 之间：越接近 1，表示该 m/z 与附近 m/z 越容易区分。
+# 实现保留 Python 版的计算方式：先计算相邻 ppm 距离，再将当前 m/z
+# 与最多两个较低、两个较高邻居的选择性分数相乘。
+calculate_selectivity <- function(sorted_mz_list, std_ppm = 5) {
+  if (!is.numeric(sorted_mz_list) || any(!is.finite(sorted_mz_list))) {
+    stop("sorted_mz_list must be a finite numeric vector.", call. = FALSE)
+  }
+  if (length(sorted_mz_list) <= 3L) {
+    stop("sorted_mz_list must contain more than three m/z values.", call. = FALSE)
+  }
+  if (is.unsorted(sorted_mz_list, strictly = FALSE)) {
+    stop("sorted_mz_list must be sorted in ascending order.", call. = FALSE)
+  }
+  if (length(std_ppm) != 1L || !is.finite(std_ppm) || std_ppm <= 0) {
+    stop("std_ppm must be one finite, positive number.", call. = FALSE)
+  }
+
+  # 将两个 m/z 的 ppm 距离转成 0 到 1 的选择性分数。
+  selectivity_from_ppm <- function(ppm_distance) {
+    if (ppm_distance > 100) {
+      1
+    } else if (ppm_distance < 0.1) {
+      0
+    } else {
+      1 - exp(-ppm_distance / std_ppm)
+    }
+  }
+
+  mz_count <- length(sorted_mz_list)
+  ppm_distances <- 1e6 *
+    diff(sorted_mz_list) /
+    sorted_mz_list[-mz_count]
+
+  # 前两个 m/z 只有不完整的左侧邻居，按 Python 版单独计算。
+  selectivities <- c(
+    selectivity_from_ppm(ppm_distances[[1L]]) *
+      selectivity_from_ppm(ppm_distances[[1L]] + ppm_distances[[2L]]),
+    selectivity_from_ppm(ppm_distances[[1L]]) *
+      selectivity_from_ppm(ppm_distances[[2L]]) *
+      selectivity_from_ppm(ppm_distances[[2L]] + ppm_distances[[3L]])
+  )
+
+  # 中间的 m/z 同时考虑两个较低和两个较高的邻居。
+  if (mz_count > 4L) {
+    for (ii in 3:(mz_count - 2L)) {
+      selectivities <- c(
+        selectivities,
+        selectivity_from_ppm(
+          ppm_distances[[ii - 2L]] + ppm_distances[[ii - 1L]]
+        ) *
+          selectivity_from_ppm(ppm_distances[[ii - 1L]]) *
+          selectivity_from_ppm(ppm_distances[[ii]]) *
+          selectivity_from_ppm(
+            ppm_distances[[ii]] + ppm_distances[[ii + 1L]]
+          )
+      )
+    }
+  }
+
+  # 最后两个 m/z 只有不完整的右侧邻居，按 Python 版单独计算。
+  distance_count <- length(ppm_distances)
+  selectivities <- c(
+    selectivities,
+    selectivity_from_ppm(
+      ppm_distances[[distance_count - 2L]] +
+        ppm_distances[[distance_count - 1L]]
+    ) *
+      selectivity_from_ppm(ppm_distances[[distance_count - 1L]]) *
+      selectivity_from_ppm(ppm_distances[[distance_count]]),
+    selectivity_from_ppm(
+      ppm_distances[[distance_count - 1L]] +
+        ppm_distances[[distance_count]]
+    ) *
+      selectivity_from_ppm(ppm_distances[[distance_count]])
+  )
+
+  selectivities
+}
+
+# 根据 m/z seeds 将数据点分配到最近聚类；当前仍是待实现骨架。
 nn_cluster_by_mz_seeds <- function(datatuples, mz_tolerance, presorted = FALSE) {
   stop("Not implemented yet: nn_cluster_by_mz_seeds")
 }
 
+# 从 m/z 数据中识别可用作聚类中心的质量峰；当前仍是待实现骨架。
 identify_mass_peaks <- function(datatuples, mz_tolerance) {
   stop("Not implemented yet: identify_mass_peaks")
 }

@@ -47,3 +47,32 @@ test_that("check_close_mzs uses a strict tolerance comparison", {
     list(c(2L, 1L))
   )
 })
+
+test_that("calculate_selectivity matches the Python four-value calculation", {
+  mzs <- c(100.0000, 100.0005, 100.0010, 100.0015)
+  expected <- c(
+    0.54657191622213974,
+    0.34549779899513522,
+    0.34549632904743122,
+    0.54656787982816335
+  )
+
+  expect_equal(calculate_selectivity(mzs, std_ppm = 5), expected, tolerance = 1e-14)
+})
+
+test_that("calculate_selectivity handles interior values and cutoff branches", {
+  expect_equal(
+    calculate_selectivity(c(100, 100.000001, 100.001, 100.02, 100.2)),
+    c(0, 0, 0.74741079425419588, 1, 1),
+    tolerance = 1e-14
+  )
+})
+
+test_that("calculate_selectivity validates its documented preconditions", {
+  expect_error(calculate_selectivity(c(100, 101, 102)), "more than three")
+  expect_error(
+    calculate_selectivity(c(100, 100.2, 100.1, 100.3)),
+    "ascending order"
+  )
+  expect_error(calculate_selectivity(100:103, std_ppm = 0), "positive")
+})
