@@ -10,3 +10,16 @@ test_that("extract_single_track_full_rt_length builds one full-length track", {
   expect_equal(track[[1]], 99.95)
   expect_equal(track[[2]], c(10, 25, 0, 0))
 })
+
+test_that("bin_to_mass_tracks builds one track for a narrow mz range", {
+  bin <- list(
+    c(100.0002, 1, 20),
+    c(100.0000, 0, 10)
+  )
+
+  tracks <- bin_to_mass_tracks(bin, rt_length = 3, mz_tolerance_ppm = 5)
+
+  expect_length(tracks, 1)
+  expect_equal(tracks[[1]][[1]], 100.00015)
+  expect_equal(tracks[[1]][[2]], c(10, 20, 0))
+})

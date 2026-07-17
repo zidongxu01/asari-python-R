@@ -129,8 +129,28 @@ extract_single_track_full_rt_length <- function(bin,
   list(mz, intensity_track)
 }
 
+# 判断一个 m/z bin 应构成一条还是多条 mass tracks。
+# m/z 范围较小时直接构建一条；范围较大时先按 m/z 聚类，再逐组构建。
 bin_to_mass_tracks <- function(bin_data_tuples, rt_length, mz_tolerance_ppm = 5) {
-  stop("Not implemented yet: bin_to_mass_tracks")
+  bin_data_tuples <- bin_data_tuples[
+    order(vapply(bin_data_tuples, function(x) x[[1L]], numeric(1)))
+  ]
+  mz_range <- bin_data_tuples[[length(bin_data_tuples)]][[1L]] -
+    bin_data_tuples[[1L]][[1L]]
+  mz_tolerance <- bin_data_tuples[[1L]][[1L]] * 0.000001 * mz_tolerance_ppm
+
+  if (mz_range < mz_tolerance * 2) {
+    return(list(
+      extract_single_track_full_rt_length(bin_data_tuples, rt_length)
+    ))
+  }
+
+  rois <- build_chromatogram_by_mz_clustering(
+    bin_data_tuples, rt_length, mz_tolerance
+  )
+  lapply(rois, function(roi) {
+    extract_single_track_full_rt_length(roi, rt_length)
+  })
 }
 
 get_thousandth_bins <- function(mz_tree,
