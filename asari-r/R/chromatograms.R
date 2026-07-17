@@ -242,6 +242,8 @@ get_thousandth_bins <- function(mz_tree,
   good_bins
 }
 
+# 使用匹配的 landmark peaks 拟合 LOWESS，将样本 scan 映射到参考样本 scan。
+# 同时返回正向和反向映射，只保存发生变化且没有超出真实范围的 scan。
 rt_lowess_calibration <- function(good_landmark_peaks,
                                   selected_reference_landmark_peaks,
                                   sample_rt_numbers,
@@ -249,7 +251,83 @@ rt_lowess_calibration <- function(good_landmark_peaks,
                                   num_iterations,
                                   sample_name,
                                   outdir) {
-  stop("Not implemented yet: rt_lowess_calibration")
+  reference_rt_bound <- max(reference_rt_numbers)
+  sample_rt_bound <- max(sample_rt_numbers)
+  rt_rightend <- 1.1 * sample_rt_bound
+  xx <- rep(-0.1 * sample_rt_bound, 3L)
+  yy <- rep(-0.1 * sample_rt_bound, 3L)
+
+  rt_cal <- clean_rt_calibration_points(Map(
+    function(sample_peak, reference_peak) {
+      c(sample_peak$apex, reference_peak$apex)
+    },
+    good_landmark_peaks,
+    selected_reference_landmark_peaks
+  ))
+
+  xx <- c(
+    xx,
+    vapply(rt_cal, function(pair) pair[[1L]], numeric(1)),
+    rep(rt_rightend, 3L)
+  )
+  yy <- c(
+    yy,
+    vapply(rt_cal, function(pair) pair[[2L]], numeric(1)),
+    rep(rt_rightend, 3L)
+  )
+
+  frac <- 0.6 - 0.004 * (length(rt_cal) - 50)
+  frac <- max(0.2, min(frac, 0.6))
+
+  lowess_predicted <- hacked_lowess(
+    yy,
+    xx,
+    frac = frac,
+    it = num_iterations,
+    xvals = sample_rt_numbers
+  )
+
+  interpolation_order <- order(lowess_predicted)
+  interpolation_x <- lowess_predicted[interpolation_order]
+  interpolation_y <- sample_rt_numbers[interpolation_order]
+  ref_interpolated <- stats::approx(
+    interpolation_x,
+    interpolation_y,
+    xout = reference_rt_numbers
+  )$y
+
+  left <- reference_rt_numbers < interpolation_x[[1L]]
+  ref_interpolated[left] <- interpolation_y[[1L]] +
+    (reference_rt_numbers[left] - interpolation_x[[1L]]) *
+      (interpolation_y[[2L]] - interpolation_y[[1L]]) /
+      (interpolation_x[[2L]] - interpolation_x[[1L]])
+
+  last <- length(interpolation_x)
+  right <- reference_rt_numbers > interpolation_x[[last]]
+  ref_interpolated[right] <- interpolation_y[[last]] +
+    (reference_rt_numbers[right] - interpolation_x[[last]]) *
+      (interpolation_y[[last]] - interpolation_y[[last - 1L]]) /
+      (interpolation_x[[last]] - interpolation_x[[last - 1L]])
+
+  lowess_predicted <- as.integer(round(lowess_predicted))
+  keep_forward <- sample_rt_numbers != lowess_predicted &
+    lowess_predicted >= 0L &
+    lowess_predicted <= reference_rt_bound
+  rt_cal_dict <- stats::setNames(
+    lowess_predicted[keep_forward],
+    sample_rt_numbers[keep_forward]
+  )
+
+  ref_interpolated <- as.integer(round(ref_interpolated))
+  keep_reverse <- reference_rt_numbers != ref_interpolated &
+    ref_interpolated >= 0L &
+    ref_interpolated <= sample_rt_bound
+  reverse_rt_cal_dict <- stats::setNames(
+    ref_interpolated[keep_reverse],
+    reference_rt_numbers[keep_reverse]
+  )
+
+  list(rt_cal_dict, reverse_rt_cal_dict)
 }
 
 remap_intensity_track <- function(intensity_track, new, rt_cal_dict) {
