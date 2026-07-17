@@ -435,6 +435,169 @@ mass_paired_mapping_with_correction <- function(
   list(mapped = mapped, correction_ratio = correction_ratio)
 }
 
+# 以高可信 landmark m/z 为锚点，将一个新样本的 m/z 列表加入当前参考列表。
+#
+# 函数先对齐参考和新样本的 landmarks，在高可信配对数量足够时估计整体
+# m/z 偏移，并在正或负偏移绝对值超过阈值时校正新样本。随后对齐剩余 m/z，
+# 用配对两端的平均值更新参考 m/z，并把新样本中未配对的 m/z 追加为新参考行。
+# R 版使用 1-based landmark 和映射位置，用 NA_integer_ 表示 Python 中的 None。
+landmark_guided_mapping <- function(
+    REF_reference_mzlist,
+    REF_landmarks,
+    SM_mzlist,
+    SM_landmarks,
+    std_ppm = 5,
+    correction_tolerance_ppm = 1) {
+  if (!is.numeric(REF_reference_mzlist) ||
+      any(!is.finite(REF_reference_mzlist)) ||
+      !is.numeric(SM_mzlist) ||
+      any(!is.finite(SM_mzlist))) {
+    stop(
+      "REF_reference_mzlist and SM_mzlist must be finite numeric vectors.",
+      call. = FALSE
+    )
+  }
+  if (!is.numeric(REF_landmarks) || any(!is.finite(REF_landmarks)) ||
+      any(REF_landmarks != as.integer(REF_landmarks)) ||
+      any(REF_landmarks < 1L) ||
+      any(REF_landmarks > length(REF_reference_mzlist))) {
+    stop(
+      "REF_landmarks must contain valid 1-based reference positions.",
+      call. = FALSE
+    )
+  }
+  if (!is.numeric(SM_landmarks) || any(!is.finite(SM_landmarks)) ||
+      any(SM_landmarks != as.integer(SM_landmarks)) ||
+      any(SM_landmarks < 1L) ||
+      any(SM_landmarks > length(SM_mzlist))) {
+    stop(
+      "SM_landmarks must contain valid 1-based sample positions.",
+      call. = FALSE
+    )
+  }
+  if (length(std_ppm) != 1L || !is.finite(std_ppm) || std_ppm < 0) {
+    stop("std_ppm must be one finite, non-negative number.", call. = FALSE)
+  }
+  if (length(correction_tolerance_ppm) != 1L ||
+      !is.finite(correction_tolerance_ppm) ||
+      correction_tolerance_ppm < 0) {
+    stop(
+      "correction_tolerance_ppm must be one finite, non-negative number.",
+      call. = FALSE
+    )
+  }
+
+  REF_landmarks <- as.integer(REF_landmarks)
+  SM_landmarks <- as.integer(SM_landmarks)
+  original_reference_count <- length(REF_reference_mzlist)
+  new_reference_map2 <- rep(NA_integer_, original_reference_count)
+  correction_ratio <- NULL
+
+  # 第一步：只使用高可信 landmarks 估计样本间 m/z 偏移。
+  reference_anchors <- REF_reference_mzlist[REF_landmarks]
+  sample_anchors <- SM_mzlist[SM_landmarks]
+  anchor_result <- mass_paired_mapping(
+    reference_anchors,
+    sample_anchors,
+    std_ppm
+  )
+  anchor_mapping <- anchor_result$mapped
+
+  if (length(anchor_mapping) > 0.2 * original_reference_count) {
+    correction_ratio <- mean(anchor_result$ratio_deltas)
+
+    if (abs(correction_ratio) > correction_tolerance_ppm * 1e-6) {
+      SM_mzlist <- SM_mzlist / (1 + correction_ratio)
+      sample_anchors <- SM_mzlist[SM_landmarks]
+      anchor_result <- mass_paired_mapping(
+        reference_anchors,
+        sample_anchors,
+        std_ppm
+      )
+      anchor_mapping <- anchor_result$mapped
+    }
+  }
+
+  # 将 landmark 子列表中的位置还原为完整 m/z 列表位置。
+  mapped <- lapply(
+    anchor_mapping,
+    function(pair) {
+      c(REF_landmarks[[pair[[1L]]]], SM_landmarks[[pair[[2L]]]])
+    }
+  )
+  mapped_reference <- if (length(mapped) == 0L) {
+    integer()
+  } else {
+    vapply(mapped, `[[`, integer(1), 1L)
+  }
+  mapped_sample <- if (length(mapped) == 0L) {
+    integer()
+  } else {
+    vapply(mapped, `[[`, integer(1), 2L)
+  }
+
+  # 第二步：在排除 landmark 配对后，尽可能配对剩余 m/z。
+  remaining_reference <- setdiff(
+    seq_along(REF_reference_mzlist),
+    mapped_reference
+  )
+  remaining_sample <- setdiff(seq_along(SM_mzlist), mapped_sample)
+  remaining_result <- complete_mass_paired_mapping(
+    REF_reference_mzlist[remaining_reference],
+    SM_mzlist[remaining_sample],
+    std_ppm
+  )
+  sample_unmatched <- remaining_sample[remaining_result$list2_unmapped]
+  remaining_mapped <- lapply(
+    remaining_result$mapped,
+    function(pair) {
+      c(
+        remaining_reference[[pair[[1L]]]],
+        remaining_sample[[pair[[2L]]]]
+      )
+    }
+  )
+  mapped_pairs <- c(mapped, remaining_mapped)
+
+  message(
+    sprintf(
+      "    mapped pairs = %d / %d ",
+      length(mapped_pairs),
+      length(SM_mzlist)
+    )
+  )
+
+  # 成功配对时，记录新样本位置，并用配对两端的平均值更新参考 m/z。
+  for (pair in mapped_pairs) {
+    new_reference_map2[[pair[[1L]]]] <- pair[[2L]]
+    REF_reference_mzlist[[pair[[1L]]]] <- 0.5 * (
+      REF_reference_mzlist[[pair[[1L]]]] + SM_mzlist[[pair[[2L]]]]
+    )
+  }
+
+  # 新样本中没有参考配对的 m/z 追加为 MassGrid 的新参考行。
+  for (ii in seq_along(sample_unmatched)) {
+    sample_index <- sample_unmatched[[ii]]
+    new_reference_map2 <- c(new_reference_map2, sample_index)
+
+    if (sample_index %in% SM_landmarks) {
+      REF_landmarks <- c(REF_landmarks, original_reference_count + ii)
+    }
+  }
+
+  new_reference_mzlist <- c(
+    REF_reference_mzlist,
+    SM_mzlist[sample_unmatched]
+  )
+
+  list(
+    new_reference_mzlist = new_reference_mzlist,
+    new_reference_map2 = new_reference_map2,
+    REF_landmarks = REF_landmarks,
+    correction_ratio = correction_ratio
+  )
+}
+
 # 根据 m/z seeds 将数据点分配到最近聚类；当前仍是待实现骨架。
 nn_cluster_by_mz_seeds <- function(datatuples, mz_tolerance, presorted = FALSE) {
   stop("Not implemented yet: nn_cluster_by_mz_seeds")

@@ -306,3 +306,104 @@ test_that("mass mapping correction validates inputs", {
     "correction_tolerance_ppm"
   )
 })
+
+test_that("landmark guided mapping corrects and extends the reference", {
+  result <- suppressMessages(
+    landmark_guided_mapping(
+      c(100, 200, 300),
+      c(1L, 2L),
+      c(100.0004, 200.0008, 300.0018, 400.0016),
+      c(1L, 2L, 4L),
+      std_ppm = 5,
+      correction_tolerance_ppm = 1
+    )
+  )
+
+  expect_equal(
+    result$new_reference_mzlist,
+    c(
+      100.00000000079999,
+      200.00000000159997,
+      300.0003000012,
+      400.00000000639994
+    ),
+    tolerance = 1e-12
+  )
+  expect_equal(result$new_reference_map2, c(1L, 2L, 3L, 4L))
+  expect_equal(result$REF_landmarks, c(1L, 2L, 4L))
+  expect_equal(
+    result$correction_ratio,
+    3.999984000054678e-6,
+    tolerance = 1e-16
+  )
+})
+
+test_that("landmark guided mapping uses NA for an absent sample track", {
+  result <- suppressMessages(
+    landmark_guided_mapping(
+      c(100, 200),
+      1L,
+      c(100.00005, 300),
+      1L,
+      std_ppm = 5,
+      correction_tolerance_ppm = 1
+    )
+  )
+
+  expect_equal(result$new_reference_mzlist, c(100.000025, 200, 300))
+  expect_equal(result$new_reference_map2, c(1L, NA_integer_, 2L))
+  expect_equal(result$REF_landmarks, 1L)
+  expect_equal(
+    result$correction_ratio,
+    4.999997500167233e-7,
+    tolerance = 1e-16
+  )
+})
+
+test_that("landmark guided mapping corrects a negative mass shift", {
+  result <- suppressMessages(
+    landmark_guided_mapping(
+      c(100, 200, 300),
+      c(1L, 2L),
+      c(99.9997, 199.9994, 299.9991),
+      c(1L, 2L),
+      std_ppm = 5,
+      correction_tolerance_ppm = 1
+    )
+  )
+
+  expect_equal(result$new_reference_map2, c(1L, 2L, 3L))
+  expect_equal(
+    result$correction_ratio,
+    -2.999999999957481e-6,
+    tolerance = 1e-16
+  )
+})
+
+test_that("landmark guided mapping leaves correction unset with too few anchors", {
+  result <- suppressMessages(
+    landmark_guided_mapping(
+      100 * seq_len(10),
+      1L,
+      c(100.0003, 1100),
+      1L,
+      std_ppm = 5,
+      correction_tolerance_ppm = 1
+    )
+  )
+
+  expect_null(result$correction_ratio)
+  expect_equal(result$new_reference_map2[[1L]], 1L)
+  expect_equal(tail(result$new_reference_map2, 1L), 2L)
+})
+
+test_that("landmark guided mapping validates landmark positions", {
+  expect_error(
+    landmark_guided_mapping(100, 0, 100, 1L),
+    "REF_landmarks"
+  )
+  expect_error(
+    landmark_guided_mapping(100, 1L, 100, 2L),
+    "SM_landmarks"
+  )
+})
