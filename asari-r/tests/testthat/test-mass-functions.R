@@ -76,3 +76,45 @@ test_that("calculate_selectivity validates its documented preconditions", {
   )
   expect_error(calculate_selectivity(100:103, std_ppm = 0), "positive")
 })
+
+test_that("mass_paired_mapping matches unsorted lists and preserves positions", {
+  result <- mass_paired_mapping(
+    c(200.0000, 100.0000),
+    c(200.0008, 100.0003),
+    std_ppm = 5
+  )
+
+  expect_equal(result$mapped, list(c(2L, 2L), c(1L, 1L)))
+  expect_equal(
+    result$ratio_deltas,
+    c(2.999991000022228e-6, 3.999984000121733e-6),
+    tolerance = 1e-16
+  )
+})
+
+test_that("mass_paired_mapping leaves an ambiguous candidate unmatched", {
+  result <- mass_paired_mapping(100, c(100.0002, 100.0003), std_ppm = 5)
+
+  expect_equal(result$mapped, list())
+  expect_equal(result$ratio_deltas, numeric())
+})
+
+test_that("mass_paired_mapping keeps the list2 minus list1 shift sign", {
+  result <- mass_paired_mapping(100.0003, 100, std_ppm = 5)
+
+  expect_equal(result$mapped, list(c(1L, 1L)))
+  expect_equal(
+    result$ratio_deltas,
+    -2.999991000022228e-6,
+    tolerance = 1e-16
+  )
+})
+
+test_that("mass_paired_mapping handles empty lists and validates inputs", {
+  expect_equal(
+    mass_paired_mapping(numeric(), numeric()),
+    list(mapped = list(), ratio_deltas = numeric())
+  )
+  expect_error(mass_paired_mapping("100", 100), "numeric vectors")
+  expect_error(mass_paired_mapping(100, 100, std_ppm = -1), "non-negative")
+})

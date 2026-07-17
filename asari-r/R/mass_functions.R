@@ -137,6 +137,73 @@ calculate_selectivity <- function(sorted_mz_list, std_ppm = 5) {
   selectivities
 }
 
+# 在两个 m/z 列表之间寻找没有邻近候选冲突的一对一匹配。
+#
+# 函数先保留每个 m/z 的列表来源和原始位置，再合并排序两个列表。
+# 只有来自不同列表、距离小于 ppm 容差，且下一个相邻值不会造成冲突时，
+# 当前两个 m/z 才会被记录为匹配。R 版返回 1-based 原始位置。
+mass_paired_mapping <- function(list1, list2, std_ppm = 5) {
+  if (!is.numeric(list1) || any(!is.finite(list1)) ||
+      !is.numeric(list2) || any(!is.finite(list2))) {
+    stop("list1 and list2 must be finite numeric vectors.", call. = FALSE)
+  }
+  if (length(std_ppm) != 1L || !is.finite(std_ppm) || std_ppm < 0) {
+    stop("std_ppm must be one finite, non-negative number.", call. = FALSE)
+  }
+
+  list1_count <- length(list1)
+  list2_count <- length(list2)
+  combined_count <- list1_count + list2_count
+
+  if (combined_count < 2L) {
+    return(list(mapped = list(), ratio_deltas = numeric()))
+  }
+
+  combined_mz <- c(list1, list2)
+  list_origin <- c(rep(1L, list1_count), rep(2L, list2_count))
+  original_index <- c(seq_along(list1), seq_along(list2))
+
+  # Python tuple 的排序依次使用 m/z、列表来源和原始索引。
+  sorted_order <- order(combined_mz, list_origin, original_index)
+  combined_mz <- combined_mz[sorted_order]
+  list_origin <- list_origin[sorted_order]
+  original_index <- original_index[sorted_order]
+
+  # 追加与 Python 版一致的哨兵值，使最后一个真实元素也能检查下一个距离。
+  combined_mz <- c(combined_mz, 999999)
+  list_origin <- c(list_origin, 2L)
+  original_index <- c(original_index, NA_integer_)
+
+  mapped <- list()
+  ratio_deltas <- numeric()
+
+  for (ii in 2:combined_count) {
+    if (list_origin[[ii]] != list_origin[[ii - 1L]]) {
+      tolerance <- combined_mz[[ii]] * std_ppm * 1e-6
+      distance <- combined_mz[[ii]] - combined_mz[[ii - 1L]]
+
+      if (distance < tolerance &&
+          combined_mz[[ii + 1L]] - combined_mz[[ii]] > tolerance) {
+        if (list_origin[[ii]] > list_origin[[ii - 1L]]) {
+          mapped[[length(mapped) + 1L]] <- c(
+            original_index[[ii - 1L]],
+            original_index[[ii]]
+          )
+          ratio_deltas <- c(ratio_deltas, distance / combined_mz[[ii]])
+        } else {
+          mapped[[length(mapped) + 1L]] <- c(
+            original_index[[ii]],
+            original_index[[ii - 1L]]
+          )
+          ratio_deltas <- c(ratio_deltas, -distance / combined_mz[[ii]])
+        }
+      }
+    }
+  }
+
+  list(mapped = mapped, ratio_deltas = ratio_deltas)
+}
+
 # 根据 m/z seeds 将数据点分配到最近聚类；当前仍是待实现骨架。
 nn_cluster_by_mz_seeds <- function(datatuples, mz_tolerance, presorted = FALSE) {
   stop("Not implemented yet: nn_cluster_by_mz_seeds")
