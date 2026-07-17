@@ -242,6 +242,25 @@ get_thousandth_bins <- function(mz_tree,
   good_bins
 }
 
+# 对应 SciPy interp1d(..., fill_value = "extrapolate") 的线性插值与外推。
+linear_interpolate_with_extrapolation <- function(x, y, xout) {
+  interpolation_order <- order(x)
+  x <- x[interpolation_order]
+  y <- y[interpolation_order]
+  result <- stats::approx(x, y, xout = xout)$y
+
+  left <- xout < x[[1L]]
+  result[left] <- y[[1L]] + (xout[left] - x[[1L]]) *
+    (y[[2L]] - y[[1L]]) / (x[[2L]] - x[[1L]])
+
+  last <- length(x)
+  right <- xout > x[[last]]
+  result[right] <- y[[last]] + (xout[right] - x[[last]]) *
+    (y[[last]] - y[[last - 1L]]) / (x[[last]] - x[[last - 1L]])
+
+  result
+}
+
 # 使用匹配的 landmark peaks 拟合 LOWESS，将样本 scan 映射到参考样本 scan。
 # 同时返回正向和反向映射，只保存发生变化且没有超出真实范围的 scan。
 rt_lowess_calibration <- function(good_landmark_peaks,
@@ -287,27 +306,11 @@ rt_lowess_calibration <- function(good_landmark_peaks,
     xvals = sample_rt_numbers
   )
 
-  interpolation_order <- order(lowess_predicted)
-  interpolation_x <- lowess_predicted[interpolation_order]
-  interpolation_y <- sample_rt_numbers[interpolation_order]
-  ref_interpolated <- stats::approx(
-    interpolation_x,
-    interpolation_y,
-    xout = reference_rt_numbers
-  )$y
-
-  left <- reference_rt_numbers < interpolation_x[[1L]]
-  ref_interpolated[left] <- interpolation_y[[1L]] +
-    (reference_rt_numbers[left] - interpolation_x[[1L]]) *
-      (interpolation_y[[2L]] - interpolation_y[[1L]]) /
-      (interpolation_x[[2L]] - interpolation_x[[1L]])
-
-  last <- length(interpolation_x)
-  right <- reference_rt_numbers > interpolation_x[[last]]
-  ref_interpolated[right] <- interpolation_y[[last]] +
-    (reference_rt_numbers[right] - interpolation_x[[last]]) *
-      (interpolation_y[[last]] - interpolation_y[[last - 1L]]) /
-      (interpolation_x[[last]] - interpolation_x[[last - 1L]])
+  ref_interpolated <- linear_interpolate_with_extrapolation(
+    lowess_predicted,
+    sample_rt_numbers,
+    reference_rt_numbers
+  )
 
   lowess_predicted <- as.integer(round(lowess_predicted))
   keep_forward <- sample_rt_numbers != lowess_predicted &
@@ -330,10 +333,175 @@ rt_lowess_calibration <- function(good_landmark_peaks,
   list(rt_cal_dict, reverse_rt_cal_dict)
 }
 
-remap_intensity_track <- function(intensity_track, new, rt_cal_dict) {
-  stop("Not implemented yet: remap_intensity_track")
+# 删除重复的 RT landmark 配对，并过滤偏差超出三倍总体标准差的异常点。
+clean_rt_calibration_points <- function(rt_cal_pairs) {
+  pair_keys <- vapply(
+    rt_cal_pairs,
+    function(pair) paste(pair, collapse = "\r"),
+    character(1)
+  )
+  unique_pairs <- rt_cal_pairs[!duplicated(pair_keys)]
+  deltas <- vapply(
+    unique_pairs,
+    function(pair) pair[[1L]] - pair[[2L]],
+    numeric(1)
+  )
+  mean_delta <- mean(deltas)
+  std3x <- sqrt(mean((deltas - mean_delta)^2)) * 3
+  low <- mean_delta - std3x
+  high <- mean_delta + std3x
+
+  kept <- unique_pairs[deltas > low & deltas < high]
+  kept[order(
+    vapply(kept, function(pair) pair[[1L]], numeric(1)),
+    vapply(kept, function(pair) pair[[2L]], numeric(1))
+  )]
 }
 
+# 使用 R 的 LOWESS 拟合，并把拟合值线性插值到指定的 scan 坐标。
+hacked_lowess <- function(yy, xx, frac, it, xvals) {
+  fitted <- stats::lowess(
+    xx,
+    yy,
+    f = frac,
+    iter = it,
+    delta = 0
+  )
+  stats::approx(
+    fitted$x,
+    fitted$y,
+    xout = xvals,
+    ties = "ordered"
+  )$y
+}
+
+# RT 校准的调试版本：返回相同映射，并输出 landmark 与校准曲线图。
+rt_lowess_calibration_debug <- function(good_landmark_peaks,
+                                         selected_reference_landmark_peaks,
+                                         sample_rt_numbers,
+                                         reference_rt_numbers,
+                                         num_iterations,
+                                         sample_name,
+                                         outdir) {
+  calibration <- rt_lowess_calibration(
+    good_landmark_peaks,
+    selected_reference_landmark_peaks,
+    sample_rt_numbers,
+    reference_rt_numbers,
+    num_iterations,
+    sample_name,
+    outdir
+  )
+
+  sample_rt_bound <- max(sample_rt_numbers)
+  rt_rightend <- 1.1 * sample_rt_bound
+  rt_cal <- clean_rt_calibration_points(Map(
+    function(sample_peak, reference_peak) {
+      c(sample_peak$apex, reference_peak$apex)
+    },
+    good_landmark_peaks,
+    selected_reference_landmark_peaks
+  ))
+  xx <- c(
+    rep(-0.1 * sample_rt_bound, 3L),
+    vapply(rt_cal, function(pair) pair[[1L]], numeric(1)),
+    rep(rt_rightend, 3L)
+  )
+  yy <- c(
+    rep(-0.1 * sample_rt_bound, 3L),
+    vapply(rt_cal, function(pair) pair[[2L]], numeric(1)),
+    rep(rt_rightend, 3L)
+  )
+  frac <- 0.6 - 0.004 * (length(rt_cal) - 50)
+  frac <- max(0.2, min(frac, 0.6))
+  lowess_predicted <- as.integer(round(hacked_lowess(
+    yy,
+    xx,
+    frac = frac,
+    it = num_iterations,
+    xvals = sample_rt_numbers
+  )))
+
+  plot_file <- file.path(
+    outdir,
+    "export",
+    paste0(sample_name, "_rtime_alignment_result.png")
+  )
+  grDevices::png(plot_file)
+  graphics::plot(
+    xx[4L:(length(xx) - 3L)],
+    yy[4L:(length(yy) - 3L)],
+    xlab = "Sample Retention Time (sec)",
+    ylab = "Reference Retention Time (sec)",
+    main = "Retention Time Alignment",
+    col = "black",
+    pch = 1
+  )
+  graphics::lines(sample_rt_numbers, lowess_predicted, col = "red")
+  graphics::legend(
+    "topleft",
+    legend = c("Landmark peaks", "Alignment function"),
+    col = c("black", "red"),
+    pch = c(1, NA),
+    lty = c(NA, 1)
+  )
+  grDevices::dev.off()
+
+  calibration
+}
+
+# Python 中尚未实现的 Savitzky-Golay spline 占位函数。
+savitzky_golay_spline <- function(good_landmark_peaks,
+                                   selected_reference_landmark_peaks,
+                                   sample_rt_numbers,
+                                   reference_rt_numbers) {
+  invisible(NULL)
+}
+
+# Python 中明确标记为尚未实现的 DWT RT 校准占位函数。
+dwt_rt_calibrate <- function(good_landmark_peaks,
+                             selected_reference_landmark_peaks,
+                             sample_rt_numbers,
+                             reference_rt_numbers) {
+  stop("Not implemented", call. = FALSE)
+}
+
+# 根据 RT 校准映射，把 intensity 值复制到校准后的 scan 位置。
+remap_intensity_track <- function(intensity_track, new, rt_cal_dict) {
+  new[seq_along(intensity_track)] <- intensity_track
+
+  for (ii in seq_along(rt_cal_dict)) {
+    source_index <- as.integer(names(rt_cal_dict)[[ii]]) + 1L
+    target_index <- as.integer(round(rt_cal_dict[[ii]])) + 1L
+    if (source_index >= 1L && source_index <= length(intensity_track) &&
+        target_index >= 1L && target_index <= length(new)) {
+      new[[target_index]] <- intensity_track[[source_index]]
+    }
+  }
+
+  new
+}
+
+# 使用最近边界值填充窗口，对 intensity track 做简单移动平均。
 smooth_moving_average <- function(list_intensity, size = 9) {
-  stats::filter(list_intensity, rep(1 / size, size), sides = 2)
+  left_width <- floor(size / 2)
+  right_width <- size - left_width - 1L
+
+  vapply(seq_along(list_intensity), function(ii) {
+    positions <- seq.int(ii - left_width, ii + right_width)
+    positions <- pmin(length(list_intensity), pmax(1L, positions))
+    mean(list_intensity[positions])
+  }, numeric(1))
+}
+
+# 使用 LOWESS 平滑噪声较大的 intensity track。
+smooth_lowess <- function(list_intensity, frac = 0.02) {
+  scan_numbers <- seq_along(list_intensity) - 1L
+  hacked_lowess(
+    list_intensity,
+    scan_numbers,
+    frac = frac,
+    it = 1,
+    xvals = scan_numbers
+  )
 }
