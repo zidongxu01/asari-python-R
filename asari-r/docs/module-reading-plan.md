@@ -28,7 +28,10 @@ Questions:
 
 ## 3. peaks.py
 
-Status: next after mass_functions.py.
+Status: all 19 top-level functions ported. The SciPy-compatible peak-property
+layer was checked on 200 deterministic synthetic signals, and the full peak
+detection path was compared on 50 synthetic mass tracks. Integration with
+`constructors.py` remains.
 
 Questions:
 

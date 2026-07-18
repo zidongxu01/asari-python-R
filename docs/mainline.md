@@ -57,14 +57,15 @@ r-prototype/R/asari_process.R
 | `experiment.py` | R 版还没有完整实验对象。 |
 | `constructors.py` | 还没有 `MassGrid` / `CompositeMap` / 多样本 feature alignment。 |
 | `mass_functions.py` | `asari-r/R/mass_functions.R` 已完成全部顶层函数的独立移植，并完成 Python/SciPy 行为对照；尚未接入 `constructors.py` / MassGrid 完整流程。 |
-| `peaks.py` | 只做了粗 peak detection，还没有完整 prominence、Gaussian fitting、cSelectivity 逻辑。 |
+| `peaks.py` | `asari-r/R/peaks.R` 已迁移全部 19 个顶层函数，包含 prominence、Gaussian fitting、cSelectivity，并完成独立 Python/SciPy 行为对照；尚未接入 `constructors.py` 多样本主流程。 |
 | output export | 单样本非空 `preferred_Feature_table.tsv` 已接入；多样本输出还没完成。 |
 
 ### 下一步顺序
 
 1. 对照 Python asari 的 `preferred_Feature_table.tsv` 做单样本结果比较。
 2. 把已完成的 `mass_functions.py` R 函数接入 `constructors.py` / MassGrid。
-3. 验证多样本 m/z 对齐和 reference 更新逻辑。
+3. 把已完成的 `peaks.py` R 函数接入 composite mass tracks。
+4. 验证多样本 m/z 对齐和 reference 更新逻辑。
 
 ### 规则
 
@@ -131,14 +132,15 @@ r-prototype/R/asari_process.R
 | `experiment.py` | No full R experiment object yet. |
 | `constructors.py` | No `MassGrid`, `CompositeMap`, or multi-sample feature alignment yet. |
 | `mass_functions.py` | All top-level functions are ported in `asari-r/R/mass_functions.R` and checked against Python/SciPy behavior; integration with `constructors.py` / MassGrid remains. |
-| `peaks.py` | Only rough peak detection exists; full prominence, Gaussian fitting, and cSelectivity logic are not ported. |
+| `peaks.py` | All 19 top-level functions are ported in `asari-r/R/peaks.R`, including prominence, Gaussian fitting, and cSelectivity, and checked independently against Python/SciPy behavior; integration with the `constructors.py` multi-sample workflow remains. |
 | output export | Single-sample non-empty `preferred_Feature_table.tsv` is wired; multi-sample export is not complete. |
 
 ### Next Steps
 
 1. Compare single-sample R output against Python asari's `preferred_Feature_table.tsv`.
 2. Connect the completed `mass_functions.py` R functions to `constructors.py` / MassGrid.
-3. Validate multi-sample m/z alignment and reference updates.
+3. Connect the completed `peaks.py` R functions to composite mass tracks.
+4. Validate multi-sample m/z alignment and reference updates.
 
 ### Rule
 
