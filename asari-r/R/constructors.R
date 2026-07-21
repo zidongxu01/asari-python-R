@@ -433,7 +433,7 @@ CompositeMap__init__ <- function(experiment) {
   self$`_number_of_samples_` <- experiment$number_of_samples
 
   # 样本列顺序严格跟随 valid_sample_ids。
-  self$list_sample_names <- vapply(
+  self$list_sample_names <- unname(vapply(
     experiment$valid_sample_ids,
     function(sample_id) {
       .constructors_get(
@@ -442,7 +442,7 @@ CompositeMap__init__ <- function(experiment) {
       )
     },
     character(1)
-  )
+  ))
 
   # 参考样本决定 RT 坐标系和最大参考保留时间。
   self$reference_sample_instance <-

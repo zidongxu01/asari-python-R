@@ -109,6 +109,17 @@ extract_mass_tracks <- function(infile,
   )
 }
 
+# 对应Python原名 extract_massTracks_；保留其大小写和尾部下划线接口。
+extract_massTracks_ <- function(infile,
+                                mz_tolerance_ppm = 5,
+                                min_intensity = 100,
+                                min_timepoints = 5,
+                                min_peak_height = 1000) {
+  extract_mass_tracks(
+    infile, mz_tolerance_ppm, min_intensity, min_timepoints, min_peak_height
+  )
+}
+
 # 把有限 m/z 范围内的数据点整理成一条覆盖完整 RT 范围的 mass track。
 # 代表 m/z 结合中位数和最高强度点计算；同一扫描存在多个点时保留最大强度。
 extract_single_track_full_rt_length <- function(bin,
@@ -127,6 +138,12 @@ extract_single_track_full_rt_length <- function(bin,
   }
 
   list(mz, intensity_track)
+}
+
+# 对应Python原名 extract_single_track_fullrt_length。
+extract_single_track_fullrt_length <- function(
+    bin, rt_length, INTENSITY_DATA_TYPE = numeric) {
+  extract_single_track_full_rt_length(bin, rt_length, INTENSITY_DATA_TYPE)
 }
 
 # 判断一个 m/z bin 应构成一条还是多条 mass tracks。
@@ -153,6 +170,32 @@ bin_to_mass_tracks <- function(bin_data_tuples, rt_length, mz_tolerance_ppm = 5)
   })
 }
 
+# 对应 build_chromatogram_intensity_aware：从最高强度seed开始逐组吸收m/z容差内的点。
+build_chromatogram_intensity_aware <- function(
+    bin_data_tuples, rt_length, mz_tolerance) {
+  invisible(rt_length)
+  if (length(bin_data_tuples) == 0L) return(list())
+  intensity <- vapply(bin_data_tuples, function(point) point[[3L]], numeric(1))
+  remaining <- bin_data_tuples[order(intensity, decreasing = TRUE)]
+  assigned <- list()
+  while (length(remaining)) {
+    seed <- list(remaining[[1L]])
+    next_remaining <- list()
+    if (length(remaining) > 1L) {
+      for (point in remaining[-1L]) {
+        if (abs(point[[1L]] - seed[[1L]][[1L]]) < mz_tolerance) {
+          seed[[length(seed) + 1L]] <- point
+        } else {
+          next_remaining[[length(next_remaining) + 1L]] <- point
+        }
+      }
+    }
+    assigned[[length(assigned) + 1L]] <- seed
+    remaining <- next_remaining
+  }
+  assigned
+}
+
 # 把需要拆分的 m/z 数据交给基于 m/z seeds 的最近邻聚类函数。
 # rt_length 目前不参与计算，仅保留以对应 Python 函数签名。
 build_chromatogram_by_mz_clustering <- function(bin_data_tuples,
@@ -174,37 +217,36 @@ merge_two_mass_tracks <- function(t1, t2) {
   )
 }
 
+# 对应 get_thousandth_bins 内部 __rough_check_consecutive_scans__。
+`__rough_check_consecutive_scans__` <- function(
+    datatuples, gap_allowed = 2, min_timepoints = 5) {
+  checked <- TRUE
+  check_max_len <- 4 * min_timepoints
+  if (length(datatuples) < check_max_len) {
+    min_check_val <- gap_allowed + min_timepoints - 1
+    rts <- sort(vapply(datatuples, function(point) point[[2L]], numeric(1)))
+    stops <- seq.int(min_timepoints, length(rts))
+    steps <- vapply(
+      stops,
+      function(index) rts[[index]] - rts[[index - min_timepoints + 1L]],
+      numeric(1)
+    )
+    if (min(steps) > min_check_val) checked <- FALSE
+  }
+  checked
+}
+
+# 对应 get_thousandth_bins 内部 __check_min_peak_height__。
+`__check_min_peak_height__` <- function(datatuples, min_peak_height) {
+  max(vapply(datatuples, function(point) point[[3L]], numeric(1))) >= min_peak_height
+}
+
 # 合并相邻或 ppm 范围内的千分位 m/z bins，并过滤弱信号和零散信号。
 # 返回的 good bins 会继续交给 bin_to_mass_tracks() 构建 mass tracks。
 get_thousandth_bins <- function(mz_tree,
                                 mz_tolerance_ppm = 5,
                                 min_timepoints = 5,
                                 min_peak_height = 1000) {
-  rough_check_consecutive_scans <- function(datatuples, gap_allowed = 2) {
-    checked <- TRUE
-    check_max_len <- 4 * min_timepoints
-
-    if (length(datatuples) < check_max_len) {
-      min_check_val <- gap_allowed + min_timepoints - 1
-      rts <- sort(vapply(datatuples, function(x) x[[2L]], numeric(1)))
-      steps <- vapply(
-        seq.int(min_timepoints, length(rts)),
-        function(ii) rts[[ii]] - rts[[ii - min_timepoints + 1L]],
-        numeric(1)
-      )
-      if (min(steps) > min_check_val) {
-        checked <- FALSE
-      }
-    }
-
-    checked
-  }
-
-  check_min_peak_height <- function(datatuples, min_peak_height) {
-    max(vapply(datatuples, function(x) x[[3L]], numeric(1))) >=
-      min_peak_height
-  }
-
   tolerance <- 0.000001 * mz_tolerance_ppm
   keys <- sort(as.integer(
     names(mz_tree)[lengths(mz_tree) >= min_timepoints]
@@ -233,8 +275,10 @@ get_thousandth_bins <- function(mz_tree,
       datatuples <- c(datatuples, mz_tree[[as.character(key)]])
     }
 
-    if (check_min_peak_height(datatuples, min_peak_height) &&
-        rough_check_consecutive_scans(datatuples)) {
+    if (`__check_min_peak_height__`(datatuples, min_peak_height) &&
+        `__rough_check_consecutive_scans__`(
+          datatuples, min_timepoints = min_timepoints
+        )) {
       good_bins[[length(good_bins) + 1L]] <- datatuples
     }
   }
@@ -373,6 +417,11 @@ hacked_lowess <- function(yy, xx, frac, it, xvals) {
     xout = xvals,
     ties = "ordered"
   )$y
+}
+
+# 对应Python原名 __hacked_lowess__。
+`__hacked_lowess__` <- function(yy, xx, frac, it, xvals) {
+  hacked_lowess(yy, xx, frac, it, xvals)
 }
 
 # RT 校准的调试版本：返回相同映射，并输出 landmark 与校准曲线图。

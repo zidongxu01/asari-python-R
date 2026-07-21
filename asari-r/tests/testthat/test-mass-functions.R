@@ -1,3 +1,16 @@
+test_that("mass_functions全15个Python def包含两个内部函数都有对应", {
+  functions <- c(
+    "flatten_tuplelist", "check_close_mzs", "calculate_selectivity", "__sel__",
+    "mass_paired_mapping", "complete_mass_paired_mapping", "all_mass_paired_mapping",
+    "_find_all_mzmatches_centurion_indexed_list",
+    "mass_paired_mapping_with_correction", "landmark_guided_mapping",
+    "mass_functions_bin_by_median", "gap_divide_mz_cluster", "__divide_by_largest_gap__",
+    "identify_mass_peaks", "nn_cluster_by_mz_seeds"
+  )
+  expect_length(functions, 15L)
+  expect_true(all(vapply(functions, function(name) is.function(get(name)), FALSE)))
+})
+
 test_that("flatten_tuplelist flattens tuple pairs and removes duplicates", {
   tuples <- list(c(1, 2), c(2, 3), c(3, 4))
 
@@ -68,11 +81,11 @@ test_that("calculate_selectivity handles interior values and cutoff branches", {
   )
 })
 
-test_that("calculate_selectivity validates its documented preconditions", {
+test_that("calculate_selectivity保留Python对非升序输入的实际行为", {
   expect_error(calculate_selectivity(c(100, 101, 102)), "more than three")
-  expect_error(
+  expect_equal(
     calculate_selectivity(c(100, 100.2, 100.1, 100.3)),
-    "ascending order"
+    c(1, 0, 0, 1)
   )
   expect_error(calculate_selectivity(100:103, std_ppm = 0), "positive")
 })

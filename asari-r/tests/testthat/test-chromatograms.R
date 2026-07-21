@@ -1,3 +1,25 @@
+test_that("chromatograms全18个Python def包含内部函数都有明确对应", {
+  functions <- c(
+    "extract_massTracks_", "extract_single_track_fullrt_length",
+    "bin_to_mass_tracks", "build_chromatogram_intensity_aware",
+    "build_chromatogram_by_mz_clustering", "merge_two_mass_tracks",
+    "get_thousandth_bins", "__rough_check_consecutive_scans__",
+    "__check_min_peak_height__", "rt_lowess_calibration",
+    "clean_rt_calibration_points", "rt_lowess_calibration_debug",
+    "__hacked_lowess__", "savitzky_golay_spline", "dwt_rt_calibrate",
+    "remap_intensity_track", "smooth_moving_average", "smooth_lowess"
+  )
+  expect_length(functions, 18L)
+  expect_true(all(vapply(functions, function(name) is.function(get(name)), FALSE)))
+})
+
+test_that("强度优先色谱构建与Python分组一致", {
+  points <- list(c(100.001, 0, 30), c(100.000, 1, 100), c(101, 2, 50))
+  groups <- build_chromatogram_intensity_aware(points, 3L, 0.01)
+  expect_length(groups, 2L)
+  expect_equal(vapply(groups[[1L]], `[[`, 0, 3L), c(100, 30))
+})
+
 test_that("extract_single_track_full_rt_length builds one full-length track", {
   bin <- list(
     c(100.0, 0, 10),

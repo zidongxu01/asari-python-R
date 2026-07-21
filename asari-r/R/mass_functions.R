@@ -58,6 +58,11 @@ check_close_mzs <- function(mzs, mz_tolerance_ppm = 5) {
   close_pairs
 }
 
+# 对应 calculate_selectivity 内部 __sel__：将ppm间隔转成0到1选择性。
+`__sel__` <- function(x, std_ppm = 5) {
+  if (x > 100) 1 else if (x < 0.1) 0 else 1 - exp(-x / std_ppm)
+}
+
 # 计算排序 m/z 列表中每个 m/z 的质量选择性（mSelectivity）。
 #
 # 每个分数位于 0 到 1 之间：越接近 1，表示该 m/z 与附近 m/z 越容易区分。
@@ -70,24 +75,15 @@ calculate_selectivity <- function(sorted_mz_list, std_ppm = 5) {
   if (length(sorted_mz_list) <= 3L) {
     stop("sorted_mz_list must contain more than three m/z values.", call. = FALSE)
   }
-  if (is.unsorted(sorted_mz_list, strictly = FALSE)) {
-    stop("sorted_mz_list must be sorted in ascending order.", call. = FALSE)
-  }
   if (length(std_ppm) != 1L || !is.finite(std_ppm) || std_ppm <= 0) {
     stop("std_ppm must be one finite, positive number.", call. = FALSE)
   }
 
-  # 将两个 m/z 的 ppm 距离转成 0 到 1 的选择性分数。
-  selectivity_from_ppm <- function(ppm_distance) {
-    if (ppm_distance > 100) {
-      1
-    } else if (ppm_distance < 0.1) {
-      0
-    } else {
-      1 - exp(-ppm_distance / std_ppm)
-    }
-  }
+  # 内部def已显式拆出，这里固定当前std_ppm。
+  selectivity_from_ppm <- function(ppm_distance) `__sel__`(ppm_distance, std_ppm)
 
+  # Python不强制验证升序；提取后合并轨迹追加在末尾时，landmark子集可能短暂非升序。
+  # 此时负ppm间隔经 __sel__ 转为0，这正是Python实际流程依赖的行为。
   mz_count <- length(sorted_mz_list)
   ppm_distances <- 1e6 *
     diff(sorted_mz_list) /
@@ -337,6 +333,14 @@ complete_mass_paired_mapping <- function(list1, list2, std_ppm = 5) {
   }
 
   results
+}
+
+# 保留Python单下划线原名；R内部点前缀版仅是早期移植别名。
+`_find_all_mzmatches_centurion_indexed_list` <- function(
+    query_mz, mz_centurion_tree, limit_ppm = 5) {
+  .find_all_mzmatches_centurion_indexed_list(
+    query_mz, mz_centurion_tree, limit_ppm
+  )
 }
 
 # 返回两个 m/z 列表之间 ppm 容差内的全部候选配对。
@@ -638,6 +642,19 @@ bin_by_median <- function(List_of_tuples, func_tolerance) {
   )
 }
 
+# Python模块有自己的命名空间；此别名防止tools/merge.R的同名函数在R扁平空间中掩盖归属。
+mass_functions_bin_by_median <- bin_by_median
+
+# 对应 gap_divide_mz_cluster 内部 __divide_by_largest_gap__。
+`__divide_by_largest_gap__` <- function(tuple_list) {
+  mzs <- vapply(tuple_list, function(tuple) tuple[[1L]], numeric(1))
+  split_position <- which.max(diff(mzs)) + 1L
+  list(
+    tuple_list[seq_len(split_position - 1L)],
+    tuple_list[split_position:length(tuple_list)]
+  )
+}
+
 # 在已排序 m/z tuple 中找到最大相邻间隔，并从该位置将数据分成左右两组。
 #
 # mz_tolerance 参数与 Python 原版一样保留在函数接口中，但当前算法并不使用它。
@@ -650,17 +667,7 @@ gap_divide_mz_cluster <- function(bin_data_tuples, mz_tolerance) {
     stop("Each tuple must contain an m/z value.", call. = FALSE)
   }
 
-  # 按第一个最大 m/z 间隔分割列表，对应 Python 内嵌函数 __divide_by_largest_gap__()。
-  divide_by_largest_gap <- function(tuple_list) {
-    mzs <- vapply(tuple_list, function(tuple) tuple[[1L]], numeric(1))
-    split_position <- which.max(diff(mzs)) + 1L
-    list(
-      tuple_list[seq_len(split_position - 1L)],
-      tuple_list[split_position:length(tuple_list)]
-    )
-  }
-
-  divide_by_largest_gap(bin_data_tuples)
+  `__divide_by_largest_gap__`(bin_data_tuples)
 }
 
 # 用最近边界扩展复制 SciPy uniform_filter1d(size, mode="nearest") 的一维均值滤波。
