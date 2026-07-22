@@ -265,10 +265,16 @@ asari_process <- function(
 
   # 返回最常用结果路径，同时保留输入和有效参数便于复查与复现。
   project_dir <- normalizePath(generated_projects[[1L]], mustWork = TRUE)
+  # 输出文件名允许高级参数覆盖，因此返回路径必须使用最终生效名称。
+  feature_table_name <- effective$output_feature_table
   result <- list(
     project_dir = project_dir,
-    preferred_feature_table = file.path(project_dir, "preferred_Feature_table.tsv"),
-    full_feature_table = file.path(project_dir, "export", "full_Feature_table.tsv"),
+    preferred_feature_table = file.path(
+      project_dir, paste0("preferred_", feature_table_name)
+    ),
+    full_feature_table = file.path(
+      project_dir, "export", paste0("full_", feature_table_name)
+    ),
     input_files = input_files,
     parameters = effective
   )
