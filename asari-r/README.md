@@ -1,20 +1,33 @@
 # asariR
 
-`asariR`是Python [asari](https://github.com/shuzhao-li-lab/asari) 1.17.0的R实现，
-用于从中心化（centroided）mzML数据中构建质量轨迹、对齐样本、
-检测色谱峰并导出特征表。
+`asariR`是[Python asari](https://github.com/shuzhao-li-lab/asari) 1.17.0的R语言实现。
+它读取中心化（centroided）的mzML文件，构建质量轨迹、检测色谱峰，
+并生成可以继续统计分析的特征表。
 
-本项目已经提供LC-MS、DIMS、GC-MS注释、MS2处理、QC、结果比较、
-离线Dashboard、交互式向导和Terminal命令入口。所有mzML示例都要求
-用户明确写出自己的文件路径，不会暗中选择测试数据。
+主要流程：
+
+```text
+mzML文件 → 质量轨迹 → 峰检测 → 特征表
+```
 
 ## 当前状态
 
-- R包可安装，公开函数可直接通过`library(asariR)`使用。
-- LC-MS核心流程已使用真实mzML运行并生成完整/推荐特征表。
-- 同一文件与Python asari对照时，大部分峰可相互匹配，但数量和编号不是完全相同。
-- GC注释需要用户提供Kovats校准表和EI谱库。
-- LC的本地候选注释不等于JMS/Khipu经验化合物分组，详见本页的限制说明。
+- R包可以安装，LC-MS核心流程可以处理真实mzML并输出结果。
+- 在一份完成严格对照的真实文件中，Python的2234个推荐峰都被R找到，
+  但R额外报告了4个峰；因此目前不能宣称两个版本完全相同。
+- 示例文件在当前开发电脑上的R处理时间约为10秒；实际时间取决于数据和电脑。
+- LC、GC、DIMS、MS2、QC和离线结果页面均有公开R函数入口。
+
+## 输入要求
+
+输入必须是中心化（centroided）的`.mzML`文件。
+
+```r
+input_file <- "/absolute/path/to/sample.mzML"
+file.exists(input_file)
+```
+
+结果必须是`TRUE`。不要使用不存在的路径、文件夹路径或0字节文件。
 
 ## 安装
 
@@ -24,11 +37,12 @@
 if (!requireNamespace("BiocManager", quietly = TRUE)) {
   install.packages("BiocManager")
 }
+
 BiocManager::install("mzR")
 install.packages(c("jsonlite", "remotes"))
 ```
 
-然后从GitHub安装`asari-r`子目录：
+再从GitHub安装asariR：
 
 ```r
 remotes::install_github(
@@ -38,252 +52,109 @@ remotes::install_github(
 )
 ```
 
-加载并检查：
+加载软件：
 
 ```r
 library(asariR)
 packageVersion("asariR")
-asari_available_workflows()
 ```
 
-## 快速开始：LC-MS
+## 第一次运行
 
-将下面两个路径替换为自己的路径：
+只需要修改`input_file`和`output_dir`：
 
 ```r
 library(asariR)
 
 input_file <- "/absolute/path/to/sample.mzML"
-output_dir <- "/absolute/path/to/asari-results"
+output_dir <- "/absolute/path/to/asariR-results"
+
+stopifnot(file.exists(input_file))
 
 result <- asari_process(
   input = input_file,
   output = output_dir,
-  project_name = "my_project",
+  project_name = "my_first_project",
   mode = "pos",
   ppm = 5,
-  multicores = 1,
+  multicores = 4,
   rt_align = FALSE,
   database_mode = "memory"
 )
 
-result
-```
-
-多样本时，把`input`改为包含mzML的目录，并开启RT对齐：
-
-```r
-result <- asari_process(
-  input = "/absolute/path/to/mzml-folder",
-  output = "/absolute/path/to/asari-results",
-  project_name = "batch_project",
-  mode = "pos",
-  ppm = 5,
-  multicores = 4,
-  rt_align = TRUE
-)
-```
-
-## 查看结果
-
-```r
 tables <- asari_read_results(result, table = "both")
+View(tables$preferred)
+```
+
+单文件使用`rt_align = FALSE`。多样本时，把`input`改成包含mzML的文件夹，
+并设置`rt_align = TRUE`。
+
+## 结果在哪里
+
+运行结束后，R会打印项目目录和两张特征表的完整路径。
+
+| 文件 | 含义 |
+|---|---|
+| `preferred_Feature_table.tsv` | 经过质量筛选的推荐峰，通常优先使用 |
+| `export/full_Feature_table.tsv` | 完整峰列表，包含更多低质量候选峰 |
+| `project.json` | 输入文件、参数和项目信息 |
+
+也可以读取以前生成的项目：
+
+```r
+tables <- asari_read_results(
+  "/absolute/path/to/generated-project-folder",
+  table = "both"
+)
 
 View(tables$preferred)
 View(tables$full)
-
-dashboard_file <- asari_dashboard(
-  result,
-  table = "preferred",
-  open = TRUE
-)
 ```
 
-项目目录中最重要的文件是：
+`F1`、`F2`等编号只是本次运行的行号。比较Python和R时，
+应根据`mz`和`rtime`判断是否为同一个峰，不要只比较编号。
 
-- `preferred_Feature_table.tsv`：默认质量标准筛选后的推荐特征。
-- `export/full_Feature_table.tsv`：保留更多峰的完整特征表。
-- `project.json`：项目参数、样本和运行信息。
-- `asari_dashboard_preferred.html`：调用`asari_dashboard()`后生成的离线页面。
+## Commands
 
-## 常用功能
+Command是在Terminal中告诉软件要执行哪类工作的词。例如：
 
-| 目的 | 函数 |
-|---|---|
-| LC/GC数据预处理 | `asari_process()` |
-| DIMS直接进样 | `asari_process_dims()` |
-| 分析一个mzML | `asari_analyze()` |
-| 导出质量轨迹摘要 | `asari_extract_mass_tracks()` |
-| 读取项目表格 | `asari_read_results()` |
-| 比较两张特征表 | `asari_compare_features()` |
-| 合并多张特征表 | `asari_merge_feature_tables()` |
-| 提取目标m/z | `asari_extract_targets()` |
-| LC质量/RT候选注释 | `asari_annotate_lc()` |
-| GC Kovats + EI谱库注释 | `asari_annotate_gc()` |
-| 提取MS2 | `asari_extract_ms2()` |
-| MS2匹配MS1特征 | `asari_match_ms2()` |
-| MS2本地谱库检索 | `asari_search_ms2()` |
-| 特征表QC PDF | `asari_feature_qc()` |
-| mzML QC HTML | `asari_qc_report()` |
-| MS1/MS2扫描摘要PDF | `asari_scan_summary()` |
-| 离线项目页面 | `asari_dashboard()` |
-| GC共洗脱特征图 | `asari_feature_graph()` |
-| PCA和特征表绘图 | `asari_pca()` / `asari_plot_correlations()` |
-| 谱图镜像图 | `asari_mirror_plot()` |
-| 交互式操作向导 | `asari_gui()` |
-| Terminal命令 | `asari_cli()` |
-| Thermo RAW转换 | `asari_convert_raw()` |
-
-查看某个函数的全部参数：
-
-```r
-?asari_process
-?asari_annotate_lc
-?asari_extract_ms2
-?asari_dashboard
+```text
+process --input sample.mzML --ppm 5
 ```
 
-## DIMS
+这里`process`是command，`--input`和`--ppm`是参数。
 
-```r
-dims_result <- asari_process_dims(
-  input = "/absolute/path/to/sample.mzML",
-  output = "/absolute/path/to/dims-results",
-  project_name = "dims_project",
-  mode = "pos",
-  ppm = 5
-)
+| Command | 用途 | 对应R函数 |
+|---|---|---|
+| `process` | 正式处理mzML | `asari_process()` / `asari_process_dims()` |
+| `analyze` | 检查一个mzML | `asari_analyze()` |
+| `annotate` | 对LC或GC特征表做注释 | `asari_annotate_lc()` / `asari_annotate_gc()` |
+| `viz` | 生成离线结果页面 | `asari_dashboard()` |
+| `join` | 合并两张或更多特征表 | `asari_merge_feature_tables()` |
+| `list_workflows` | 查看支持的工作流 | `asari_available_workflows()` |
 
-dims_table <- asari_read_results(dims_result, table = "full")$full
+第一次使用主要需要`analyze`和`process`。
+
+### Terminal格式
+
+```bash
+Rscript -e 'asariR::asari_cli(commandArgs(TRUE))' -- COMMAND [OPTIONS]
 ```
 
-DIMS没有色谱峰形和RT对齐，因此主要结果是`full`表，
-不应把空的`preferred`表解释为没有信号。
+查看帮助：
 
-## LC注释
-
-用户自己的标准品表（至少包含`mz`，可选`rtime`、`id`和`name`）：
-
-```r
-annotation <- asari_annotate_lc(
-  feature_table = result$preferred_feature_table,
-  database = "/absolute/path/to/standards.tsv",
-  output = "/absolute/path/to/LC_annotation.tsv",
-  mode = "pos",
-  ppm = 5,
-  rt_tolerance = 5
-)
+```bash
+Rscript -e 'asariR::asari_cli(commandArgs(TRUE))' -- --help
 ```
 
-使用Python asari安装中的HMDB4 pickle：
+检查一个mzML：
 
-```r
-options(asariR.python = "/absolute/path/to/python")
-options(asariR.db_dir = "/absolute/path/to/asari/db")
-
-annotation <- asari_annotate_lc(
-  result$preferred_feature_table,
-  database = "hmdb4",
-  output = "/absolute/path/to/HMDB_candidates.tsv",
-  mode = "pos"
-)
+```bash
+Rscript -e 'asariR::asari_cli(commandArgs(TRUE))' -- \
+  analyze --input "/absolute/path/to/sample.mzML" --mode pos --ppm 5
 ```
 
-第一次会将pickle转为RDS缓存；后续检索不再重复解码。
-
-## GC-MS注释
-
-```r
-gc_result <- asari_annotate_gc(
-  feature_table = "/absolute/path/to/full_Feature_table.tsv",
-  kovats = "/absolute/path/to/kovats.tsv",
-  library = "/absolute/path/to/library.msp",
-  output_dir = "/absolute/path/to/gc-annotation",
-  project_name = "gc_project",
-  denovo = FALSE,
-  mirror_plots = FALSE
-)
-```
-
-EI谱库必须是包含保留指数和谱峰的MSP或JSON文件。
-
-## MS2
-
-提取一个mzML中的MS2：
-
-```r
-ms2 <- asari_extract_ms2(
-  input = "/absolute/path/to/sample.mzML",
-  output = "/absolute/path/to/extracted_ms2.json",
-  min_intensity = 1000
-)
-```
-
-将MS2匹配到已生成的MS1特征：
-
-```r
-matched <- asari_match_ms2(
-  feature_table = result$full_feature_table,
-  ms2_files = c(
-    "/absolute/path/to/sample_01.mzML",
-    "/absolute/path/to/sample_02.mzML"
-  ),
-  output = "/absolute/path/to/matched_ms2.json"
-)
-```
-
-检索本地MSP、MGF或JSON谱库：
-
-```r
-hits <- asari_search_ms2(
-  spectra = ms2,
-  library = "/absolute/path/to/library.msp",
-  output = "/absolute/path/to/ms2_hits.tsv",
-  method = "cosine"
-)
-```
-
-## QC与比较
-
-```r
-asari_feature_qc(
-  result$full_feature_table,
-  "/absolute/path/to/feature_qc.pdf"
-)
-
-asari_qc_report(
-  "/absolute/path/to/sample.mzML",
-  "/absolute/path/to/sample_qc.html"
-)
-
-comparison <- asari_compare_features(
-  left = "/absolute/path/to/R_table.tsv",
-  right = "/absolute/path/to/Python_table.tsv",
-  ppm = 5,
-  rt_tolerance = 5
-)
-```
-
-特征编号只是各自运行的顺序标识。比较两个版本时，应使用m/z和RT匹配，
-不要仅比较`F33`这样的编号。
-
-## 交互式向导与Terminal
-
-在RStudio中先查看配置：
-
-```r
-configuration <- asari_gui(
-  input = "/absolute/path/to/sample.mzML",
-  output = "/absolute/path/to/results",
-  workflow = "LC",
-  run = FALSE
-)
-configuration
-```
-
-确认后把`run`改为`TRUE`。
-
-Terminal中可以这样运行：
+正式处理：
 
 ```bash
 Rscript -e 'asariR::asari_cli(commandArgs(TRUE))' -- \
@@ -291,64 +162,88 @@ Rscript -e 'asariR::asari_cli(commandArgs(TRUE))' -- \
   --input "/absolute/path/to/sample.mzML" \
   --output "/absolute/path/to/results" \
   --project "my_project" \
-  --mode pos \
-  --ppm 5 \
-  --multicores 1
+  --mode pos --ppm 5 --multicores 4
 ```
 
-其他子命令是`analyze`、`annotate`、`viz`、`join`和`list_workflows`。
+查看全部工作流：
 
-## Thermo RAW转换
+```bash
+Rscript -e 'asariR::asari_cli(commandArgs(TRUE))' -- list_workflows
+```
 
-第一次需要网络下载ThermoRawFileParser：
+其他commands的参数可以通过`--help`和下方对应R函数的帮助页面查看。
+
+## 常用参数
+
+| 参数 | 含义 | 常见值 |
+|---|---|---|
+| `input` | 一个mzML或包含mzML的文件夹 | 必须明确填写 |
+| `output` | 结果保存位置 | 建议使用绝对路径 |
+| `project_name` | 项目名称 | 任意简短名称 |
+| `mode` | 离子模式 | `"pos"`或`"neg"` |
+| `ppm` | m/z容差 | 常用`5` |
+| `multicores` | CPU核心数 | 可先使用`4` |
+| `rt_align` | 是否进行保留时间对齐 | 单文件`FALSE`，多文件`TRUE` |
+| `database_mode` | 中间数据保存方式 | 普通用户建议`"memory"` |
+
+如果不确定参数，应先使用示例设置处理一个文件。
+
+## 其他功能
+
+| 目的 | R函数 |
+|---|---|
+| DIMS处理 | `asari_process_dims()` |
+| 导出质量轨迹 | `asari_extract_mass_tracks()` |
+| 比较特征表 | `asari_compare_features()` |
+| 提取目标m/z | `asari_extract_targets()` |
+| LC/GC注释 | `asari_annotate_lc()` / `asari_annotate_gc()` |
+| 提取、匹配和检索MS2 | `asari_extract_ms2()` / `asari_match_ms2()` / `asari_search_ms2()` |
+| QC和统计图 | `asari_feature_qc()` / `asari_qc_report()` / `asari_pca()` |
+| 离线结果页面 | `asari_dashboard()` |
+| RStudio操作向导 | `asari_gui()` |
+| Thermo RAW转换 | `asari_convert_raw()` |
+
+查看某个函数的参数和示例：
 
 ```r
-asari_install_raw_converter()
-
-converted <- asari_convert_raw(
-  input = c(
-    "/absolute/path/to/sample_01.raw",
-    "/absolute/path/to/sample_02.raw"
-  ),
-  output_dir = "/absolute/path/to/mzml",
-  multicores = 2
-)
+?asari_process
+?asari_analyze
+?asari_annotate_lc
+?asari_extract_ms2
+?asari_dashboard
 ```
 
-macOS/Linux通常还需要可执行`.exe`的Mono环境。已经mzML的用户不需要这个工具。
+## Python与网络要求
 
-## 依赖和网络
-
-| 功能 | 额外要求 |
+| 操作 | 要求 |
 |---|---|
-| 处理mzML | `mzR`、`jsonlite`；运行时不需要网络 |
-| 本地TSV/CSV/JSON注释 | 不需要网络 |
-| 读取Python pickle | 第一次需要可用Python解释器 |
-| 离线Dashboard | 无额外R包，不需要网络 |
-| RAW转换器首次安装 | 需要网络 |
-| 开发测试 | 可选`testthat` |
+| 安装R包 | 需要联网 |
+| 处理普通mzML | 不需要Python，运行时不需要联网 |
+| `database_mode = "ondisk"` | 需要Python写出兼容pickle |
+| 读取Python pickle | 需要Python解释器 |
+| 首次安装Thermo RAW转换器 | 需要联网；macOS/Linux通常还需要Mono |
 
-## 重要限制
+已经拥有中心化mzML且使用`database_mode = "memory"`时，
+核心处理流程是纯R的。
 
-1. R版目标是行为尽可能接近Python asari，但不应宣称所有输出逐位完全相同。
-2. 峰编号可以不同；请根据m/z和RT判定是否是同一特征。
-3. `asari_annotate_lc()`是可直接使用的质量/RT候选匹配，不完全复制外部JMS/Khipu分组。
-4. `asari_search_ms2(method = "entropy")`在没有外部后端时使用本地JS相似度，与`ms_entropy`不保证逐值相同。
-5. GC、MS2和注释结果取决于用户提供的校准表、谱库版本和容差。
-6. 真实多样本项目应先用小批次确认参数和结果，再运行全部数据。
+## 已知限制
 
-## 开发检查
+1. R版与Python版非常接近，但尚未在大量不同数据上证明完全一致。
+2. 峰编号可能不同，版本比较应使用m/z和保留时间。
+3. `asari_annotate_lc()`提供本地质量/RT候选匹配，不完全等同于外部JMS/Khipu分组。
+4. GC和MS2结果依赖用户提供的校准表、谱库版本和容差。
+5. 大型项目应先用少量文件确认模式、ppm和峰检测结果。
 
-`testthat`只用于开发测试，不参与mzML计算。
+## 开发测试
+
+`testthat`只用于检查代码，不参与mzML计算。
 
 ```bash
 cd "/absolute/path/to/asari-r"
 Rscript scripts/run_tests.R
-R CMD check --no-manual .
 ```
 
-自动测试通过说明已覆盖的函数和边界条件未发现错误，
-不单独证明所有真实数据都与Python版完全相同。
+测试通过只表示已覆盖的代码没有发现错误，不单独证明所有真实数据与Python完全一致。
 
 ## License
 
