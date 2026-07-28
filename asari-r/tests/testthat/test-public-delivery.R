@@ -1,4 +1,4 @@
-# 公开交付测试使用小型明确输入，不连接网络或隐藏数据。
+# Public delivery tests use small explicit inputs and do not connect to the network or hide data.
 source(file.path("R", "default_parameters.R"), local = FALSE)
 source(file.path("R", "utils.R"), local = FALSE)
 source(file.path("R", "mass_functions.R"), local = FALSE)

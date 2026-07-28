@@ -1,4 +1,4 @@
-# 从任意工作目录定位asari-r根目录，避免testthat切换目录后找不到R源码。
+# Locate the asari-r root directory from any working directory to avoid testthat not being able to find the R source code after switching directories.
 arguments <- commandArgs(trailingOnly = FALSE)
 script_argument <- grep("^--file=", arguments, value = TRUE)
 if (length(script_argument) == 1L) {
@@ -13,18 +13,18 @@ setwd(package_root)
 
 library(testthat)
 
-# 把测试中的隐式绘图设备定向到临时文件，避免在源码目录留下Rplots.pdf。
+# Direct the implicit plot device under test to a temporary file to avoid leaving Rplots.pdf in the source directory.
 old_device <- getOption("device")
 options(device = function(...) {
   grDevices::pdf(file = tempfile("asariR-test-", fileext = ".pdf"), ...)
 })
 on.exit(options(device = old_device), add = TRUE)
 
-# 先按R包加载顺序读取全部模块；部分旧测试只包含断言，没有重复source目标模块。
+# First read all modules in the order in which the R package is loaded; some old tests only contain assertions and do not duplicate source target modules.
 r_files <- sort(list.files("R", pattern = "[.]R$", full.names = TRUE))
 invisible(lapply(r_files, source, local = .GlobalEnv))
 
-# 手工登记每个测试文件，使旧的逐文件source测试和统一汇总可以同时工作。
+# Manually register each test file so that the old file-by-file source testing and unified summary can work at the same time.
 test_files <- sort(list.files("tests/testthat", pattern = "^test-.*[.]R$", full.names = TRUE))
 reporter <- ListReporter$new()
 with_reporter(reporter, {
@@ -37,7 +37,7 @@ with_reporter(reporter, {
 results <- reporter$get_results()
 results_frame <- as.data.frame(results)
 
-# 输出稳定的总数，失败时返回非零状态，便于Terminal和CI判断。
+# Outputs a stable total number, and returns a non-zero status on failure, which is convenient for Terminal and CI judgment.
 passed <- sum(results_frame$passed)
 failed <- sum(results_frame$failed) + sum(results_frame$error)
 warnings <- sum(results_frame$warning)

@@ -1,12 +1,12 @@
-# 对应 Python asari/__init__.py：声明包版本并由R包加载机制统一加载各模块。
+# Corresponds to Python asari/__init__.py: declare the package version and load each module uniformly by the R package loading mechanism.
 
-# Python 对外提供 __version__ = "1.17.0"；反引号使R保留同名符号。
+# Python provides externally __version__ = "1.17.0"; backticks allow R to retain the symbol with the same name.
 `__version__` <- "1.17.0"
 
-# 提供符合R命名习惯的同值别名。
+# Provide aliases with the same value that conform to R naming conventions.
 asari_version <- `__version__`
 
-# Python __init__ 的 import 会加载主模块；R包在载入时会自动读取R/下所有文件。
+# The import of Python __init__ will load the main module; the R package will automatically read all files under R/ when loading.
 ASARI_CORE_MODULES <- c(
   "analyze", "annotate", "chromatograms", "command_line", "constructors",
   "default_parameters", "experiment", "main", "mass_functions", "peaks",

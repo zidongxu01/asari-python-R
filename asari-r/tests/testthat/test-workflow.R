@@ -1,4 +1,4 @@
-# workflow.py 的 12 个 def 必须逐一存在明确的 R 对应函数。
+# Each of the 12 defs in workflow.py must have a clear R corresponding function.
 test_that("all 12 Python workflow defs have explicit R counterparts", {
   expected_functions <- c(
     "workflow_setup",
@@ -21,7 +21,7 @@ test_that("all 12 Python workflow defs have explicit R counterparts", {
   }, logical(1))))
 })
 
-# 生成 workflow 测试所需的完整参数；每次使用独立输出前缀避免时间戳碰撞。
+# Generate complete parameters required for workflow testing; use independent output prefixes each time to avoid timestamp collisions.
 make_workflow_parameters <- function(database_mode = "memory",
                                      workflow = "DIMS") {
   list(
@@ -61,7 +61,7 @@ make_workflow_parameters <- function(database_mode = "memory",
   )
 }
 
-# 返回确定性的五条质量轨迹，使真实 MassGrid 和 selectivity 路径满足输入前提。
+# Return deterministic five mass track so that the real MassGrid and selectivity paths meet the input conditions.
 make_workflow_extractor <- function(acquisition_time = 1700000000) {
   force(acquisition_time)
   function(infile, mz_tolerance_ppm, min_intensity,
@@ -81,13 +81,13 @@ make_workflow_extractor <- function(acquisition_time = 1700000000) {
   }
 }
 
-# 锚点查找 mock 返回两个合法的 Python 0-based track pairs。
+# The anchor lookup mock returns two valid Python 0-based track pairs.
 workflow_anchor_finder <- function(list_mass_tracks, mz_tolerance_ppm) {
   stopifnot(length(list_mass_tracks) == 5L, mz_tolerance_ppm == 5)
   list(c(0L, 1L), c(2L, 3L))
 }
 
-# 样本登记必须使用连续 0-based ID，并保留传入文件顺序。
+# Sample registration must use consecutive 0-based IDs and preserve the order of incoming files.
 test_that("register_samples creates Python style registry", {
   files <- c("a.mzML", "b.mzML")
   registry <- register_samples(files)
@@ -101,7 +101,7 @@ test_that("register_samples creates Python style registry", {
   )
 })
 
-# 目录读取按文件名子串过滤；项目清单读取后转换为绝对路径并去除空白。
+# Directory reading is filtered by file name substring; after the project list is read, it is converted to absolute path and blanks are removed.
 test_that("project readers filter mzML paths", {
   directory <- tempfile("mzml_dir_")
   dir.create(directory)
@@ -123,7 +123,7 @@ test_that("project readers filter mzML paths", {
   expect_true(all(startsWith(from_file, normalizePath(getwd()))))
 })
 
-# 创建项目目录时更新 outdir/export/tmp_pickle_dir，并拒绝覆盖同名目标。
+# Update outdir/export/tmp_pickle_dir when creating the project directory and refuse to overwrite targets with the same name.
 test_that("create_export_folders creates Python directory layout", {
   parameters <- make_workflow_parameters()
   updated <- create_export_folders(parameters, "12345")
@@ -143,7 +143,7 @@ test_that("create_export_folders creates Python directory layout", {
   expect_equal(returned$outdir, updated$outdir)
 })
 
-# 临时 pickle 清理只删除指定项目目录，并在 reuse 模式下拒绝删除。
+# A temporary pickle cleanup only deletes the specified project directory and refuses deletion in reuse mode.
 test_that("remove_intermediate_pickles removes only temporary pickle files", {
   parameters <- create_export_folders(make_workflow_parameters(), "cleanup")
   files <- file.path(parameters$tmp_pickle_dir, c("a.pickle", "b.pickle"))
@@ -160,7 +160,7 @@ test_that("remove_intermediate_pickles removes only temporary pickle files", {
   )
 })
 
-# make_iter_parameters 应生成 sample_id、输入、输出和同一参数对象组成的四元组。
+# make_iter_parameters should generate a four-tuple of sample_id, input, output, and the same parameter object.
 test_that("make_iter_parameters builds one extraction job per sample", {
   parameters <- create_export_folders(make_workflow_parameters(), "jobs")
   registry <- register_samples(c("a.mzML", "b.mzML"))
@@ -175,7 +175,7 @@ test_that("make_iter_parameters builds one extraction job per sample", {
   expect_identical(jobs[[1L]][[4L]], parameters)
 })
 
-# memory 模式单样本提取应返回 Python 12 项 tuple 和完整 sample_data。
+# Memory mode single sample extraction should return a Python 12-item tuple and full sample_data.
 test_that("single sample extraction returns memory data and anchor metadata", {
   parameters <- make_workflow_parameters(database_mode = "memory")
   parameters$extract_mass_tracks <- make_workflow_extractor()
@@ -198,7 +198,7 @@ test_that("single sample extraction returns memory data and anchor metadata", {
   expect_false(file.exists(outfile))
 })
 
-# ondisk 模式必须写出 samples.R 和 Python 都可读取的真实 pickle。
+# ondisk mode must write real pickles that can be read by both samples.R and Python.
 test_that("single sample extraction writes readable ondisk pickle", {
   skip_if_not_installed("jsonlite")
   python <- tryCatch(.samples_find_python(), error = function(error) "")
@@ -224,7 +224,7 @@ test_that("single sample extraction writes readable ondisk pickle", {
   expect_equal(tuple[[11L]], list())
 })
 
-# 任何提取异常都被转换成状态 failed 的 12 项 tuple，不中断其他样本。
+# Any fetch exceptions are converted to a 12-item tuple with status failed, without interrupting other samples.
 test_that("single sample extraction converts errors to failed status", {
   parameters <- make_workflow_parameters()
   parameters$extract_mass_tracks <- function(...) stop("broken mzML")
@@ -244,7 +244,7 @@ test_that("single sample extraction converts errors to failed status", {
   expect_equal(tuple[[12L]], FALSE)
 })
 
-# batch 提取按样本 ID 合并每个单样本结果，顺序和数量不丢失。
+# Batch extraction merges each single sample result by sample ID without losing the order and quantity.
 test_that("batch extraction merges all sample results", {
   parameters <- create_export_folders(make_workflow_parameters(), "batch")
   parameters$extract_mass_tracks <- make_workflow_extractor()
@@ -259,7 +259,7 @@ test_that("batch extraction merges all sample results", {
   }, logical(1))))
 })
 
-# workflow_setup 修正 Python 元组错位，并构造可真实运行 DIMS 的 Experiment。
+# workflow_setup corrects the misalignment of Python tuples and constructs an experiment that can actually run DIMS.
 test_that("workflow setup maps extraction tuple fields and runs real DIMS", {
   parameters <- make_workflow_parameters(database_mode = "auto")
   parameters$extract_mass_tracks <- make_workflow_extractor()
@@ -282,7 +282,7 @@ test_that("workflow setup maps extraction tuple fields and runs real DIMS", {
   expect_length(experiment$all_samples, 2L)
 })
 
-# 不支持的 workflow 仍完成 setup 并打印 Python Error 100，不误调用处理方法。
+# Unsupported workflows will still complete setup and print Python Error 100, without calling the processing method by mistake.
 test_that("process_project reports unsupported workflow without crashing", {
   parameters <- make_workflow_parameters(
     database_mode = "memory", workflow = "UNKNOWN"
@@ -296,7 +296,7 @@ test_that("process_project reports unsupported workflow without crashing", {
   )
 })
 
-# process_xics 修正 Python 的双重 register_samples 错误并输出 pickle。
+# process_xics fixes Python's double register_samples bug and prints pickle.
 test_that("process_xics stores one pickle per input mzML", {
   skip_if_not_installed("jsonlite")
   python <- tryCatch(.samples_find_python(), error = function(error) "")
@@ -316,7 +316,7 @@ test_that("process_xics stores one pickle per input mzML", {
   expect_equal(sort(pickles), c("sample_a.pickle", "sample_b.pickle"))
 })
 
-# get_mz_list 支持首列 tab 或 comma 分隔，并拒绝无法转为数值的内容。
+# get_mz_list supports tab or comma delimitation in the first column, and rejects content that cannot be converted into numeric values.
 test_that("get_mz_list reads target mz values from first column", {
   target_file <- tempfile(fileext = ".tsv")
   writeLines(c(

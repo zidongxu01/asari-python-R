@@ -1,16 +1,16 @@
-# 对应 Python asari/tools/match_features.py：按m/z和保留时间匹配LC-MS特征。
+# Corresponds to Python asari/tools/match_features.py: Match LC-MS features by m/z and retention time.
 
-# 在R中直接执行ppm窗口搜索，返回Python centurion tree检索得到的记录顺序。
+# Perform ppm window search directly in R and return the record sequence retrieved by Python centurion tree.
 .match_features_mz_candidates <- function(query_mz, features, mz_ppm) {
   Filter(function(feature) {
     abs(feature$mz - query_mz) / query_mz * 1e6 <= mz_ppm
   }, features)
 }
 
-# 对应 get_featureList：读取表格并使用Python行号生成row id。
+# Corresponds to get_featureList: Read the table and use Python row numbers to generate row ids.
 get_featureList <- function(infile, start_row = 1L, mz_col = 0L, rt_col = 1L, sep = "\t") {
   lines <- readLines(infile, warn = FALSE)
-  # start_row和列号均沿用Python的0基语义。
+  # Both start_row and column numbers follow Python's 0-based semantics.
   selected <- if (length(lines) > start_row) lines[seq.int(start_row + 1L, length(lines))] else character()
   lapply(seq_along(selected), function(ii) {
     fields <- strsplit(selected[[ii]], sep, fixed = TRUE)[[1L]]
@@ -22,7 +22,7 @@ get_featureList <- function(infile, start_row = 1L, mz_col = 0L, rt_col = 1L, se
   })
 }
 
-# 对应 list_match_lcms_features：保存所有同时满足ppm和RT窗口的匹配。
+# Corresponds to list_match_lcms_features: saves all matches that satisfy both ppm and RT windows.
 list_match_lcms_features <- function(list1, list2, mz_ppm = 5, rt_tolerance = 5) {
   mapped <- list()
   for (p1 in list1) {
@@ -40,7 +40,7 @@ list_match_lcms_features <- function(list1, list2, mz_ppm = 5, rt_tolerance = 5)
   mapped
 }
 
-# 对应 bidirectional_match：分别返回两个方向的一对多映射。
+# Corresponds to bidirectional_match: Return one-to-many mapping in both directions respectively.
 bidirectional_match <- function(list1, list2, mz_ppm = 5, rt_tolerance = 5) {
   dict1 <- list_match_lcms_features(list1, list2, mz_ppm, rt_tolerance)
   dict2 <- list_match_lcms_features(list2, list1, mz_ppm, rt_tolerance)
@@ -54,7 +54,7 @@ bidirectional_match <- function(list1, list2, mz_ppm = 5, rt_tolerance = 5) {
   list(dict1, dict2)
 }
 
-# 选择m/z偏差最小的候选；偏差相同按id排序以复现Python tuple排序。
+# Select the candidate with the smallest m/z deviation; with the same deviation, sort by id to reproduce Python tuple sorting.
 best_mz_match_lcms_features <- function(list1, list2, mz_ppm = 5, rt_tolerance = 5) {
   mapped <- list()
   for (p1 in list1) {
@@ -71,7 +71,7 @@ best_mz_match_lcms_features <- function(list1, list2, mz_ppm = 5, rt_tolerance =
   mapped
 }
 
-# 选择保留时间偏差最小的候选；偏差相同按id排序。
+# Select the candidate with the smallest deviation of retention time; the candidate with the same deviation is sorted by id.
 best_rt_match_lcms_features <- function(list1, list2, mz_ppm = 5, rt_tolerance = 5) {
   mapped <- list()
   for (p1 in list1) {
@@ -87,7 +87,7 @@ best_rt_match_lcms_features <- function(list1, list2, mz_ppm = 5, rt_tolerance =
   mapped
 }
 
-# 对应 bidirectional_best_match：返回双向最佳m/z匹配及两个方向字典。
+# Corresponds to bidirectional_best_match: Returns the best bidirectional m/z match and two direction dictionaries.
 bidirectional_best_match <- function(list1, list2, mz_ppm = 5, rt_tolerance = 5) {
   cat("\n    ~~~ By best rtime matches ~~~     \n\n")
   rt1 <- best_rt_match_lcms_features(list1, list2, mz_ppm, rt_tolerance)
@@ -104,7 +104,7 @@ bidirectional_best_match <- function(list1, list2, mz_ppm = 5, rt_tolerance = 5)
   dict1 <- best_mz_match_lcms_features(list1, list2, mz_ppm, rt_tolerance)
   dict2 <- best_mz_match_lcms_features(list2, list1, mz_ppm, rt_tolerance)
   reverse_keys <- paste(unname(dict2), names(dict2), sep = "\r")
-  # Map会沿用dict1的名称，Python的配对list没有这层额外名称。
+  # Map will inherit the name of dict1, and Python's matching list does not have this extra layer of names.
   valid <- unname(Map(c, names(dict1), unname(dict1)))
   valid <- valid[vapply(valid, function(pair) paste(pair, collapse = "\r") %in% reverse_keys, FALSE)]
   cat("~~~ Biodirectional, unique Number of matched feature pairs: ~~~\n    ", length(valid), "\n")
@@ -112,7 +112,7 @@ bidirectional_best_match <- function(list1, list2, mz_ppm = 5, rt_tolerance = 5)
   list(valid, dict1, dict2)
 }
 
-# 对应 convert_min2secs：把每个特征的分钟保留时间转成秒。
+# Corresponds to convert_min2secs: Convert the minutes retention time of each feature into seconds.
 convert_min2secs <- function(LL) {
   lapply(LL, function(point) {
     point$rtime <- point$rtime * 60
@@ -120,7 +120,7 @@ convert_min2secs <- function(LL) {
   })
 }
 
-# 对应 convert_sec2mins：把每个特征的秒保留时间转成分钟。
+# Corresponds to convert_sec2mins: Convert the seconds retention time of each feature into minutes.
 convert_sec2mins <- function(LL) {
   lapply(LL, function(point) {
     point$rtime <- point$rtime / 60

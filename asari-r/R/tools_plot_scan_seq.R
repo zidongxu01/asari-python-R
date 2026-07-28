@@ -1,6 +1,6 @@
-# 对应 Python asari/tools/plot_scan_seq.py：MS1/MS2扫描序列摘要图。
+# Corresponds to Python asari/tools/plot_scan_seq.py: MS1/MS2 scan sequence summary plot.
 
-# 对应 summarize_ms_file。
+# Corresponds to summarize_ms_file.
 summarize_ms_file <- function(
     infile, nspec_plot = 50L, offset_n = 100L, width = 10, height = 6,
     title = "", outfile = "ms_summary.pdf") {
@@ -12,19 +12,19 @@ summarize_ms_file <- function(
   invisible(NULL)
 }
 
-# 对应plot_msn内部get_median_height。
+# Corresponds to plot_msn internal get_median_height.
 .plot_msn_get_median_height <- function(peaks) {
-  # 空扫描没有可定义的中位强度，返回NA供绘图阶段跳过。
+  # Empty scans have no definable median intensity and return NA for skipping by the drawing stage.
   if (length(peaks) == 0L) return(NA_real_)
   log10(stats::median(vapply(peaks, `[[`, 0, 2L)))
 }
 
-# 对应plot_msn内部get_max_height。
+# Corresponds to plot_msn internal get_max_height.
 .plot_msn_get_max_height <- function(peaks) {
   if (length(peaks)) max(vapply(peaks, `[[`, 0, 2L)) else 0
 }
 
-# 对应 plot_msn：上图扫描峰数/中位强度，下图MS1 base peak XIC。
+# Corresponds to plot_msn: number of scanned peaks/median intensity in the upper figure, MS1 base peak XIC in the lower figure.
 plot_msn <- function(
     ms1_spectra, ms2_spectra, nspec_plot = 50L, offset_n = 100L,
     width = 10, height = 6, title = "", outfile = NULL) {
@@ -43,7 +43,7 @@ plot_msn <- function(
   if (!is.null(outfile)) on.exit(grDevices::dev.off(), add = TRUE)
   old <- graphics::par(mfrow = c(2, 1), oma = c(0, 0, 2, 0)); on.exit(graphics::par(old), add = TRUE)
   all_plot <- c(plot1, plot2)
-  # offset超出短文件时退回最前面的扫描，保证小型或纯MS1文件也能出图。
+  # When the offset exceeds the short file, it returns to the front scan, ensuring that small or pure MS1 files can also be output.
   if (length(all_plot) == 0L) {
     ids <- vapply(utils::head(all_spectra, nspec_plot), `[[`, "", "id")
     plot1 <- decorate(ms1_spectra, 1L); plot2 <- decorate(ms2_spectra, 2L)

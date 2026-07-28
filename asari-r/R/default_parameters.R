@@ -1,10 +1,10 @@
-# 对应 Python asari/default_parameters.py：默认参数和注释搜索规则。
+# Corresponds to Python asari/default_parameters.py: default parameters and annotation search patterns.
 
-# 质子与电子的精确质量常数；名称和值与 Python 原版保持一致。
+# Exact mass constants for protons and electrons; names and values remain consistent with the original Python version.
 PROTON <- 1.00727646677
 electron <- 0.000549
 
-# 正离子模式的初始加合物搜索模式，质量差均相对于 M+H+。
+# The initial adduct search pattern of positive ion mode, mass differences are relative to M+H+.
 adduct_search_patterns_pos <- list(
   list(21.98194, "Na/H"),
   list(41.026549, "ACN"),
@@ -12,10 +12,10 @@ adduct_search_patterns_pos <- list(
   list(37.955882, "K/H")
 )
 
-# Python 中 adduct_search_patterns 是正离子模式列表的同一对象。
+# adduct_search_patterns in Python is the same object as the ion mode list.
 adduct_search_patterns <- adduct_search_patterns_pos
 
-# 负离子模式的初始加合物搜索模式。
+# Negative ion mode's initial adduct search pattern.
 adduct_search_patterns_neg <- list(
   list(21.98194, "Na/H"),
   list(67.987424, "NaCOOH"),
@@ -25,7 +25,7 @@ adduct_search_patterns_neg <- list(
   list(37.955882, "K/H")
 )
 
-# 同位素搜索模式：质量差、标签和允许的相对强度范围。
+# isotope search mode: mass difference, tag and allowed relative strength range.
 isotope_search_patterns <- list(
   list(1.003355, "13C/12C", c(0, 0.8)),
   list(2.00671, "13C/12C*2", c(0, 0.8)),
@@ -33,7 +33,7 @@ isotope_search_patterns <- list(
   list(1.9970, "37Cl/35Cl", c(0.1, 0.8))
 )
 
-# 扩展加合物及中性丢失规则，用于经验化合物注释。
+# Extended adduct and neutral loss rules for empirical compound annotation.
 extended_adducts <- list(
   list(1.0078, "H"),
   list(-1.0078, "-H"),
@@ -54,7 +54,7 @@ extended_adducts <- list(
   list(97.97689507, "H3PO4")
 )
 
-# Python 原版写入输出目录的说明文本。
+# Description text that Python native writes to the output directory.
 readme_doc_str <- paste0(
   "\nThe recommended feature table is `preferred_Feature_table.tsv`. \n\n",
   "All peaks are kept in `export/full_Feature_table.tsv` \n",
@@ -68,7 +68,7 @@ readme_doc_str <- paste0(
   "report bugs or request features.\n"
 )
 
-# 构造一份新的默认参数列表，避免调用者之间共享可变状态。
+# Construct a new default parameter list to avoid sharing mutable state between callers.
 default_parameters <- function() {
   parameters <- list(
     project_name = "asari_project",
@@ -128,10 +128,10 @@ default_parameters <- function() {
     vizualization_max_samples = 20L
   )
 
-  # 兼容早期R原型曾使用的字段；真实提取仍以 min_intensity_threshold 为准。
+  # Compatible with fields used by early R prototypes; actual extraction is still based on min_intensity_threshold.
   parameters$min_intensity <- parameters$min_intensity_threshold
   parameters
 }
 
-# 对应 Python 模块级 PARAMETERS；R调用者如需修改应先复制该列表。
+# Corresponds to Python module level PARAMETERS; R callers should copy this list first if they need to modify it.
 PARAMETERS <- default_parameters()

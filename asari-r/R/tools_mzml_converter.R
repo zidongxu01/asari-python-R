@@ -1,17 +1,17 @@
-# 对应 Python asari/tools/mzml_converter.py：安装并批量调用ThermoRawFileParser。
+# Corresponds to Python asari/tools/mzml_converter.py: Install and call ThermoRawFileParser in batches.
 
-# 类级版本表和安装状态。
+# Class-level version table and installation status.
 mzMLconverter_versions <- list(
   `1.4.5` = "https://github.com/compomics/ThermoRawFileParser/releases/download/v1.4.5/ThermoRawFileParser1.4.5.zip"
 )
 .mzMLconverter_installed <- new.env(parent = emptyenv())
 
-# 创建mzMLconverter对应的可变对象。
+# Create a variable object corresponding to mzMLconverter.
 mzMLconverter <- function(version = "1.4.5", dask_ip = FALSE, multicores = NULL) {
   mzMLconverter__init__(version, dask_ip, multicores)
 }
 
-# 对应 mzMLconverter.__init__。
+# Corresponds to mzMLconverter.__init__.
 mzMLconverter__init__ <- function(version = "1.4.5", dask_ip = FALSE, multicores = NULL) {
   self <- new.env(parent = emptyenv())
   class(self) <- c("mzMLconverter", "environment")
@@ -24,7 +24,7 @@ mzMLconverter__init__ <- function(version = "1.4.5", dask_ip = FALSE, multicores
   self
 }
 
-# 对应内部嵌套def __determine_executable。
+# Corresponds to internal nested def __determine_executable.
 mzMLconverter__determine_executable <- function(converter_path) {
   probe <- getOption("asariR.converter_probe")
   engines <- list("mono", character())
@@ -40,7 +40,7 @@ mzMLconverter__determine_executable <- function(converter_path) {
   stop("Could not determine the executable to run the converter!")
 }
 
-# 对应私有方法 __conversion_command_template。
+# Corresponds to the private method __conversion_command_template.
 mzMLconverter__conversion_command_template <- function(self) {
   path <- if (exists(self$version, envir = .mzMLconverter_installed, inherits = FALSE)) {
     .mzMLconverter_installed[[self$version]]
@@ -50,7 +50,7 @@ mzMLconverter__conversion_command_template <- function(self) {
   c(engine, converter, "-i", "INPUT", "-o", "OUTPUT", "-f", "2")
 }
 
-# 对应静态方法 install_converter。
+# Corresponds to the static method install_converter.
 mzMLconverter_install_converter <- function(version = "1.4.5") {
   if (exists(version, envir = .mzMLconverter_installed, inherits = FALSE)) {
     return(.mzMLconverter_installed[[version]])
@@ -75,7 +75,7 @@ mzMLconverter_install_converter <- function(version = "1.4.5") {
   .mzMLconverter_installed[[version]]
 }
 
-# 对应静态方法 uninstall_converter。
+# Corresponds to the static method uninstall_converter.
 mzMLconverter_uninstall_converter <- function(version = "1.4.5") {
   if (exists(version, envir = .mzMLconverter_installed, inherits = FALSE)) {
     path <- .mzMLconverter_installed[[version]]
@@ -85,7 +85,7 @@ mzMLconverter_uninstall_converter <- function(version = "1.4.5") {
   invisible(NULL)
 }
 
-# 对应 bulk_convert：替换INPUT/OUTPUT并并行执行系统命令。
+# Corresponds to bulk_convert: replaces INPUT/OUTPUT and executes system commands in parallel.
 mzMLconverter_bulk_convert <- function(self, raw_files) {
   commands <- lapply(raw_files, function(file) {
     template <- gsub("INPUT", file, self$command_template, fixed = TRUE)

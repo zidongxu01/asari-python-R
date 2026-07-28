@@ -1,6 +1,6 @@
-# 对应 Python asari/tools/cosine.py：质谱峰配对与余弦相似度。
+# Corresponds to Python asari/tools/cosine.py: mass spectrum peak pairing and cosine similarity.
 
-# 对应 find_matches：返回与NumPy一致的0基峰索引。
+# Corresponds to find_matches: returns the 0 base peak index consistent with NumPy.
 find_matches <- function(ref_spec_mz, qry_spec_mz, tolerance, shift = 0.0) {
   ref_spec_mz <- as.numeric(ref_spec_mz)
   qry_spec_mz <- as.numeric(qry_spec_mz)
@@ -19,7 +19,7 @@ find_matches <- function(ref_spec_mz, qry_spec_mz, tolerance, shift = 0.0) {
       mz2 <- qry_spec_mz[[peak2_idx + 1L]] - shift
       if (mz2 > high_bound) break
       if (mz2 < low_bound) {
-        # 原Python保留当前位置，而不是移动到下一位置。
+        # Original Python retains the current position instead of moving to the next position.
         lowest_idx <- peak2_idx
       } else {
         matches1 <- c(matches1, peak1_idx)
@@ -30,7 +30,7 @@ find_matches <- function(ref_spec_mz, qry_spec_mz, tolerance, shift = 0.0) {
   list(as.integer(matches1), as.integer(matches2))
 }
 
-# 对应 collect_peak_pairs：收集精确/偏移匹配并按贡献分数降序排列。
+# Corresponds to collect_peak_pairs: collects exact/offset matches and sorts them in descending order of contribution score.
 collect_peak_pairs <- function(
     ref_spec,
     qry_spec,
@@ -60,7 +60,7 @@ collect_peak_pairs <- function(
   list(as.integer(idx1[ordering]), as.integer(idx2[ordering]), as.numeric(scores[ordering]))
 }
 
-# 对应 score_matches：贪心选择不重叠峰对并计算带惩罚的最终分数。
+# Corresponds to score_matches: greedily selects non-overlapping peak pairs and calculates a penalized final score.
 score_matches <- function(
     matches_idx1,
     matches_idx2,
@@ -106,7 +106,7 @@ score_matches <- function(
   list(min(as.numeric(total_score / (norm1 * norm2)), 1.0), used_matches)
 }
 
-# 对应 cosine_similarity：先分别按最大强度归一化，再进行峰匹配和评分。
+# Corresponds to cosine_similarity: first normalize by maximum intensity respectively, then perform peak matching and scoring.
 cosine_similarity <- function(
     qry_spec,
     ref_spec,

@@ -1,12 +1,12 @@
-# 对应 Python asari/samples.py：轻量级样本对象与中间数据读取。
+# Corresponds to Python asari/samples.py: lightweight sample objects and intermediate data reading.
 #
-# 数据结构约定：
-# 1. Python 的可变 SimpleSample 对象在 R 中使用 environment，保证字段修改会保留。
-# 2. Python dict 对应具名 list 或 environment，None 对应 NULL，空 list 对应 list()。
-# 3. scan、track 等业务编号保持 Python 原始值；本模块不擅自进行 0/1-based 转换。
-# 4. Python pickle 不是 R 原生格式，因此通过可配置的 Python 解释器转换为 JSON 后读取。
+# Data structure convention:
+# 1. Python’s mutable SimpleSample object uses environment in R to ensure that field modifications are retained.
+# 2. Python dict corresponds to a named list or environment, None corresponds to NULL, and an empty list corresponds to list().
+# 3. Business numbers such as scan and track maintain the original Python values; this module does not perform 0/1-based conversion without authorization.
+# 4. Python pickle is not a native R format, so it is converted to JSON and read through the configurable Python interpreter.
 
-# 读取具名 list 或 environment 的字段，缺失时返回给定默认值。
+# Reads a field from a named list or environment, returning the given default value if missing.
 .samples_get <- function(object, name, default = NULL) {
   if (is.environment(object)) {
     if (exists(name, envir = object, inherits = FALSE)) {
@@ -18,7 +18,7 @@
   default
 }
 
-# 按 Python registry['field'] 语义读取必需字段；缺失时立即报错。
+# Read required fields according to Python registry['field'] semantics; if missing, an error will be reported immediately.
 .samples_registry_get_required <- function(registry, name) {
   sentinel <- new.env(parent = emptyenv())
   value <- .samples_get(registry, name, sentinel)
@@ -28,12 +28,12 @@
   value
 }
 
-# 判断质量轨迹容器是否等价于 Python 的非空 list。
+# Determine whether the mass track container is equivalent to a non-empty list in Python.
 .samples_has_items <- function(value) {
   !is.null(value) && length(value) > 0L
 }
 
-# 修改实验的 parameters 字段；实验对象必须可变才能保留 Python 的副作用。
+# Modify the experiment's parameters field; the experiment object must be mutable to preserve Python's side effects.
 .samples_set_experiment_parameter <- function(experiment, name, value) {
   if (!is.environment(experiment)) {
     stop("experiment must be an environment to update parameters.", call. = FALSE)
@@ -44,7 +44,7 @@
   invisible(value)
 }
 
-# 递归还原 json_tricks 对 numpy ndarray 和 set 使用的标记结构。
+# Recursively restore the tag structures used by json_tricks for numpy ndarray and set.
 .samples_decode_json_tricks <- function(value) {
   if (!is.list(value)) return(value)
 
@@ -57,7 +57,7 @@
     if (grepl("^(u?int)", dtype)) data <- as.integer(data)
     if (grepl("^bool", dtype)) data <- as.logical(data)
 
-    # numpy 按行保存多维数组；先反转维度填充，再转置回 Python 轴顺序。
+    # Numpy saves multidimensional arrays row-wise; dimension padding is first reversed and then transposed back to Python axis order.
     shape <- as.integer(unlist(.samples_get(value, "shape", length(data))))
     if (length(shape) <= 1L) return(data)
     reversed <- array(data, dim = rev(shape))
@@ -70,7 +70,7 @@
   lapply(value, .samples_decode_json_tricks)
 }
 
-# 将 JSON 文本解析成 R list，并还原 Python json_tricks 的常见特殊类型。
+# Parse JSON text into an R list and restore common special types for Python json_tricks.
 .samples_parse_json <- function(text) {
   if (!requireNamespace("jsonlite", quietly = TRUE)) {
     stop(
@@ -82,7 +82,7 @@
   .samples_decode_json_tricks(parsed)
 }
 
-# 检查文件是否具有 ZIP 的 PK 文件头，避免对普通文件调用 unzip 产生警告。
+# Check whether the file has a ZIP PK file header to avoid warnings when calling unzip on ordinary files.
 .samples_is_zipfile <- function(path) {
   connection <- file(path, open = "rb")
   on.exit(close(connection), add = TRUE)
@@ -91,7 +91,7 @@
     identical(as.integer(signature[1:2]), c(0x50L, 0x4bL))
 }
 
-# 读取 ZIP 第一项的原始字节；顺序与 Python z.namelist()[0] 一致。
+# Read the raw bytes of the first item of the ZIP; the order is consistent with Python z.namelist()[0].
 .samples_read_first_zip_entry <- function(path) {
   entries <- utils::unzip(path, list = TRUE)
   if (nrow(entries) == 0L) {
@@ -108,7 +108,7 @@
   )
 }
 
-# 定位 pickle 转换使用的 Python；用户可通过 option 或环境变量明确指定。
+# Locates the Python used by the pickle transformation; the user can specify this explicitly via option or environment variables.
 .samples_find_python <- function() {
   configured <- getOption("asariR.python", "")
   if (nzchar(configured)) return(configured)
@@ -134,14 +134,14 @@
   existing[[1L]]
 }
 
-# 通过 Python 标准库解码 pickle，再转换成 R 能读取的 JSON。
+# Decode pickle through the Python standard library and convert it into JSON that R can read.
 .samples_read_pickle <- function(data_location, zip_entry = NULL) {
   python <- .samples_find_python()
   script_path <- tempfile(fileext = ".py")
   output_path <- tempfile(fileext = ".json")
   on.exit(unlink(c(script_path, output_path)), add = TRUE)
 
-  # 转换器处理 asari 中常见的 numpy 数组、numpy 标量和带 __dict__ 的谱对象。
+  # Converters handle common numpy arrays, numpy scalars, and spectral objects with __dict__ common in asari.
   script <- c(
     "import json, pickle, sys, zipfile",
     "source, entry, output = sys.argv[1:4]",
@@ -176,7 +176,7 @@
 
   status <- system2(
     python,
-    # system2 会交给 shell 解析参数，因此显式引用含空格的文件路径和空字符串。
+    # system2 leaves it to the shell to parse arguments, so file paths containing spaces and empty strings are explicitly quoted.
     args = shQuote(c(
       script_path,
       data_location,
@@ -197,14 +197,14 @@
   .samples_parse_json(paste(readLines(output_path, warn = FALSE), collapse = "\n"))
 }
 
-# 从实验对象或全局环境查找 Python 版 extract_ms2 所依赖的可选回调。
+# Find optional callbacks that the Python version of extract_ms2 depends on, either from the experiment object or the global environment.
 .samples_resolve_callback <- function(self, name) {
   callback <- .samples_get(self$experiment, name)
   if (is.function(callback)) return(callback)
   get0(name, envir = .GlobalEnv, mode = "function", inherits = TRUE)
 }
 
-# 对应 SimpleSample.__init__：根据 registry 创建可变样本对象。
+# Corresponds to SimpleSample.__init__: Creates a variable sample object according to the registry.
 SimpleSample__init__ <- function(registry = list(),
                                  experiment = NULL,
                                  database_mode = "ondisk",
@@ -213,7 +213,7 @@ SimpleSample__init__ <- function(registry = list(),
   self <- new.env(parent = emptyenv())
   class(self) <- c("SimpleSample", "environment")
 
-  # 保存构造参数和私有 registry；字段名逐一对应 Python 对象。
+  # Save construction parameters and private registry; field names correspond to Python objects one by one.
   self$experiment <- experiment
   self$mode <- mode
   self$database_mode <- database_mode
@@ -238,7 +238,7 @@ SimpleSample__init__ <- function(registry = list(),
     registry, "list_retention_time"
   )
 
-  # memory 模式直接持有质量轨迹；ondisk 模式只在需要时读取。
+  # Memory mode holds mass track directly; ondisk mode only reads when needed.
   if (identical(database_mode, "memory")) {
     sample_data <- .samples_registry_get_required(registry, "sample_data")
     self$list_mass_tracks <- .samples_registry_get_required(
@@ -248,7 +248,7 @@ SimpleSample__init__ <- function(registry = list(),
     self$list_mass_tracks <- list()
   }
 
-  # m/z landmark 展平逻辑复用 mass_functions.R，并初始化 RT 校准状态。
+  # The m/z landmark flatten logic multiplexes mass_functions.R and initializes the RT calibration state.
   self$`_mz_landmarks_` <- flatten_tuplelist(self$anchor_mz_pairs)
   self$rt_landmarks <- list()
   self$rt_cal_dict <- NULL
@@ -256,7 +256,7 @@ SimpleSample__init__ <- function(registry = list(),
   self$is_rt_aligned <- is_reference
   self$mz_calibration_function <- NULL
 
-  # active binding 对应 Python @property：每次访问都重新读取私有 registry。
+  # Active binding corresponds to Python @property: the private registry is re-read on each access.
   makeActiveBinding(
     "list_scan_numbers",
     local({
@@ -271,7 +271,7 @@ SimpleSample__init__ <- function(registry = list(),
     self
   )
 
-  # 为 environment 安装方法闭包，使 constructors.R 可按 Python 对象方式调用。
+  # Install method closures for environment so that constructors.R can be called as a Python object.
   self$get_mass_tracks_for_sample <- function(sample) {
     SimpleSample_get_mass_tracks_for_sample(sample)
   }
@@ -290,17 +290,17 @@ SimpleSample__init__ <- function(registry = list(),
   self
 }
 
-# 对应 @property SimpleSample.list_scan_numbers：始终从原始 registry 读取。
+# Corresponds to @property SimpleSample.list_scan_numbers: always read from the original registry.
 SimpleSample_list_scan_numbers <- function(self) {
   .samples_registry_get_required(self$`.__registry`, "list_scan_numbers")
 }
 
-# 对应 @staticmethod SimpleSample.get_mass_tracks_for_sample。
+# Corresponds to @staticmethod SimpleSample.get_mass_tracks_for_sample.
 SimpleSample_get_mass_tracks_for_sample <- function(sample) {
   SimpleSample_get_masstracks_and_anchors(sample)
 }
 
-# 对应 SimpleSample.get_masstracks_and_anchors：优先使用内存，否则按需读盘。
+# Corresponds to SimpleSample.get_masstracks_and_anchors: priority is given to using memory, otherwise disk reading is required.
 SimpleSample_get_masstracks_and_anchors <- function(self) {
   if (.samples_has_items(self$list_mass_tracks)) {
     return(self$list_mass_tracks)
@@ -309,7 +309,7 @@ SimpleSample_get_masstracks_and_anchors <- function(self) {
   .samples_registry_get_required(sample_data, "list_mass_tracks")
 }
 
-# 对应 SimpleSample.get_rt_calibration_records：导出 RT 校准所需的四个字段。
+# Corresponds to SimpleSample.get_rt_calibration_records: exports the four fields required for RT calibration.
 SimpleSample_get_rt_calibration_records <- function(self) {
   list(
     sample_id = self$sample_id,
@@ -319,10 +319,10 @@ SimpleSample_get_rt_calibration_records <- function(self) {
   )
 }
 
-# 对应 SimpleSample.extract_ms2：转换 MS2 谱并调用可选保存器。
+# Corresponds to SimpleSample.extract_ms2: converts the MS2 spectrum and calls the optional saver.
 SimpleSample_extract_ms2 <- function(self, export_format = "msp") {
   tryCatch({
-    # Python 版在 memory 模式从 registry 读取，其他模式从中间文件读取。
+    # The Python version reads from the registry in memory mode, and reads from intermediate files in other modes.
     if (identical(self$database_mode, "memory")) {
       sample_data <- .samples_registry_get_required(
         self$`.__registry`, "sample_data"
@@ -336,7 +336,7 @@ SimpleSample_extract_ms2 <- function(self, export_format = "msp") {
     save_spectra <- .samples_resolve_callback(self, "save_spectra")
 
     spectra <- lapply(ms2_data, function(spec) {
-      # Python 只在实际遍历谱图时解析 Spectrum；空谱列表不需要该构造器。
+      # Python only parses Spectrum when actually traversing the spectrum; this constructor is not required for an empty spectrum list.
       if (!is.function(Spectrum)) stop("Spectrum callback is unavailable.")
       scan_time <- .samples_get(spec, "scan_time_in_minutes")
       if (is.null(scan_time)) stop("MS2 spectrum has no scan time.")
@@ -347,7 +347,7 @@ SimpleSample_extract_ms2 <- function(self, export_format = "msp") {
         error = function(error) NULL
       )
 
-      # 与 Python zip(spec.mz, spec.intensity) 一样，只保留两者共同长度。
+      # Like Python zip(spec.mz, spec.intensity), only the common length between the two is retained.
       mzs <- .samples_get(spec, "mz", numeric())
       intensities <- .samples_get(spec, "intensity", numeric())
       common_length <- min(length(mzs), length(intensities))
@@ -369,7 +369,7 @@ SimpleSample_extract_ms2 <- function(self, export_format = "msp") {
       )
     })
 
-    # Python 仅移除开头的一个点，并把最终格式写回实验参数。
+    # Python removes only the leading dot and writes the final format back to the experimental parameters.
     if (!is.character(export_format) || length(export_format) != 1L ||
         !nzchar(export_format)) {
       stop("export_format must contain at least one character.")
@@ -393,23 +393,23 @@ SimpleSample_extract_ms2 <- function(self, export_format = "msp") {
     save_spectra(spectra, path, export_style = "matchms")
     invisible(NULL)
   }, error = function(error) {
-    # Python 捕获所有异常，只报告当前样本，不阻断主流程。
+    # Python catches all exceptions and only reports the current sample without blocking the main process.
     message("Error Extracting MS2 for: ", self$name)
     invisible(NULL)
   })
 }
 
-# 对应 SimpleSample._get_sample_data：保留未来数据库模式扩展所需的包装层。
+# Corresponds to SimpleSample._get_sample_data: Preserves the wrapping layer required for future database schema extensions.
 SimpleSample__get_sample_data <- function(self) {
   SimpleSample_load_intermediate(self$data_location)
 }
 
-# 对应 SimpleSample._retrieve_from_disk：从当前样本的数据位置读取中间文件。
+# Corresponds to SimpleSample._retrieve_from_disk: reads the intermediate file from the data location of the current sample.
 SimpleSample__retrieve_from_disk <- function(self) {
   SimpleSample_load_intermediate(self$data_location)
 }
 
-# 对应 @staticmethod SimpleSample.load_intermediate：读取 JSON、pickle 或其 ZIP。
+# Corresponds to @staticmethod SimpleSample.load_intermediate: Read JSON, pickle or its ZIP.
 SimpleSample_load_intermediate <- function(data_location) {
   if (length(data_location) != 1L || !is.character(data_location) ||
       !file.exists(data_location)) {
@@ -421,7 +421,7 @@ SimpleSample_load_intermediate <- function(data_location) {
     first_entry <- .samples_read_first_zip_entry(data_location)
     entry_name <- first_entry$name
 
-    # Python 根据 ZIP 第一项的扩展名决定解码器。
+    # Python determines the decoder based on the extension of the first item in the ZIP.
     if (!is.null(entry_name) && endsWith(entry_name, ".pickle")) {
       sample_data <- .samples_read_pickle(data_location, entry_name)
     } else if (!is.null(entry_name) && endsWith(entry_name, ".json")) {
@@ -443,10 +443,10 @@ SimpleSample_load_intermediate <- function(data_location) {
   sample_data
 }
 
-# 使用接近 Python 类名的构造器别名，供 constructors.R 的 sample_factory 直接使用。
+# Use a constructor alias close to the Python class name for direct use by sample_factory in constructors.R.
 SimpleSample <- SimpleSample__init__
 
-# 保留早期 smoke_check.R 使用的兼容构造器；它不属于 Python 的 9 个 def。
+# Preserves the compatibility constructor used by earlier smoke_check.R; it is not part of Python's 9 defs.
 new_sample <- function(name, infile) {
   list(
     name = name,

@@ -1,6 +1,6 @@
-# 面向普通用户的R包入口：校验显式输入，组织参数并调用已经完成的asari主流程。
+# R package entry point: validate explicit inputs, organize parameters, and call the core asari workflow.
 
-# 检查实际处理mzML和写出项目记录所必需的R依赖。
+# Check out the R dependencies necessary to actually process mzML and write out project records.
 .asari_check_runtime_dependencies <- function() {
   required <- c("mzR", "jsonlite")
   missing <- required[!vapply(required, requireNamespace, logical(1), quietly = TRUE)]
@@ -14,7 +14,7 @@
   invisible(TRUE)
 }
 
-# 从用户明确给出的文件或目录收集mzML；不搜索隐藏的默认数据位置。
+# Collect mzML from files or directories explicitly given by the user; hidden default data locations are not searched.
 .asari_collect_input_files <- function(input, recursive = FALSE) {
   if (!is.character(input) || length(input) == 0L || anyNA(input) ||
       any(!nzchar(trimws(input)))) {
@@ -24,7 +24,7 @@
     stop("recursive must be TRUE or FALSE.", call. = FALSE)
   }
 
-  # 逐项展开路径，目录只读取标准的.mzML文件，单文件则严格检查扩展名。
+  # Expand the path item by item, the directory only reads standard.mzML files, and the extension of a single file is strictly checked.
   collected <- character()
   for (item in path.expand(input)) {
     if (dir.exists(item)) {
@@ -48,13 +48,13 @@
     }
   }
 
-  # 规范化并排序，保证相同输入在不同运行中的样本顺序稳定。
+  # Normalize and sort to ensure that the order of samples from the same input is stable across different runs.
   collected <- sort(unique(normalizePath(collected, mustWork = TRUE)))
   if (length(collected) == 0L) {
     stop("No .mzML files were found in the supplied input path(s).", call. = FALSE)
   }
 
-  # asari使用文件名登记样本，重复文件名会造成输出列难以区分，因此提前报错。
+  # Asari uses file names to register samples. Duplicate file names will make the output columns difficult to distinguish, so an error is reported in advance.
   duplicated_names <- unique(basename(collected)[duplicated(basename(collected))])
   if (length(duplicated_names) > 0L) {
     stop(
@@ -66,7 +66,7 @@
   collected
 }
 
-# 把用户覆盖项合并进一份新的默认参数，避免修改模块级PARAMETERS对象。
+# Merge user overrides into a new default parameter to avoid modifying module-level PARAMETERS objects.
 .asari_merge_parameters <- function(overrides = list()) {
   if (!is.list(overrides)) {
     stop("parameters must be a named list.", call. = FALSE)
@@ -80,7 +80,7 @@
   parameters
 }
 
-# 验证公开入口中最常用的参数，并写回内部参数列表。
+# Verify the most commonly used parameters in the public entry and write back the internal parameter list.
 .asari_prepare_parameters <- function(
     parameters, output, project_name, mode = NULL, ppm = NULL,
     multicores = NULL, rt_align = NULL, database_mode = NULL) {
@@ -94,7 +94,7 @@
     stop("output must be one explicit directory path.", call. = FALSE)
   }
 
-  # 创建用户指定的父目录；每次运行仍由workflow生成独立的时间戳项目目录。
+  # Create a user-specified parent directory; each run will still generate an independent timestamp project directory by the workflow.
   output <- path.expand(output)
   if (file.exists(output) && !dir.exists(output)) {
     stop("output exists but is not a directory: ", output, call. = FALSE)
@@ -104,7 +104,7 @@
   }
   output <- normalizePath(output, mustWork = TRUE)
 
-  # 显式参数优先于parameters列表；未显式给出时保留用户列表或asari默认值。
+  # Explicit parameters take precedence over the parameters list; the user list or asari defaults are retained when not given explicitly.
   if (!is.null(mode)) parameters$mode <- mode
   if (!parameters$mode %in% c("pos", "neg")) {
     stop("mode must be either 'pos' or 'neg'.", call. = FALSE)
@@ -128,7 +128,7 @@
     stop("rt_align must be TRUE or FALSE.", call. = FALSE)
   }
 
-  # 新的便捷入口默认使用内存模式，避免普通LC处理依赖Python pickle转换。
+  # The new convenience entry uses memory mode by default, avoiding the need for ordinary LC processing to rely on Python pickle conversion.
   if (is.null(database_mode)) {
     database_mode <- if ("database_mode" %in% names(parameters)) {
       parameters$database_mode
@@ -145,14 +145,14 @@
   parameters
 }
 
-# 按Python命令行入口的顺序补齐峰检测派生阈值，同时保留用户明确给出的高级覆盖值。
+# Compute the derived peak-detection thresholds in the order of Python command line entry, while retaining the advanced coverage value explicitly given by the user.
 .asari_finalize_peak_parameters <- function(parameters, input_files, override_names = character()) {
   if (!is.logical(parameters$autoheight) || length(parameters$autoheight) != 1L ||
       is.na(parameters$autoheight)) {
     stop("parameters$autoheight must be TRUE or FALSE.", call. = FALSE)
   }
 
-  # 自动峰高直接使用已经收集的显式文件，避免再次扫描任何默认目录。
+  # Automatic peak height directly uses the explicit files that have already been collected, avoiding any default directories to be scanned again.
   if (isTRUE(parameters$autoheight)) {
     if (!exists("estimate_min_peak_height", mode = "function", inherits = TRUE)) {
       stop(
@@ -166,7 +166,7 @@
     parameters$min_intensity_threshold <- parameters$min_peak_height / 10
   }
 
-  # Python入口会根据最终峰高计算这两个值；高级列表中的明确值具有最高优先级。
+  # The Python entry calculates both values based on the final peak height; the explicit value in the high-level list has highest priority.
   if (!("min_prominence_threshold" %in% override_names)) {
     parameters$min_prominence_threshold <- as.integer(0.33 * parameters$min_peak_height)
   }
@@ -174,7 +174,7 @@
     parameters$cal_min_peak_height <- 10 * parameters$min_peak_height
   }
 
-  # 在进入耗时处理前一次性检查所有关键阈值，给用户明确的参数名称。
+  # Check all critical thresholds at once before entering time-consuming processing, and give users clear parameter names.
   positive_fields <- c(
     "min_peak_height", "min_prominence_threshold",
     "cal_min_peak_height", "min_intensity_threshold"
@@ -188,25 +188,25 @@
   parameters
 }
 
-#' 使用asariR处理中心化mzML数据
+#' Use asariR to process centroided mzML data
 #'
-#' 这是面向普通用户的主入口。函数接收用户明确指定的mzML文件或目录，
-#' 运行已经翻译的asari流程，并返回主要结果表的位置。
+#' This is the main entry point for users. The function receives an mzML file or directory explicitly specified by the user,
+#' Runs the translated asari process and returns the location of the main results table.
 #'
-#' @param input 一个或多个明确的`.mzML`文件，或者包含`.mzML`文件的目录。
-#' @param output 存放带时间戳项目目录的父目录。
-#' @param project_name 用于输出目录名称的简短项目名。
-#' @param mode 可选离子模式，只能是`"pos"`或`"neg"`。
-#' @param ppm 可选的正数m/z容差，单位为ppm。
-#' @param multicores 可选的正整数工作进程数。
-#' @param rt_align 可选逻辑值，控制是否进行保留时间对齐。
-#' @param database_mode 数据存储模式。便捷入口默认使用`"memory"`；
-#'   `"ondisk"`和部分`"auto"`运行需要Python解释器写兼容pickle。
-#' @param recursive 是否递归查找输入目录。
-#' @param parameters 来自[asari_default_parameters()]的高级参数覆盖列表；
-#'   显式参数的优先级更高。
+#' @param input One or more explicit `.mzML` files, or a directory containing `.mzML` files.
+#' @param output The parent directory that holds the timestamped project directory.
+#' @param project_name Short project name for the output directory name.
+#' @param mode Optional ion mode can only be `"pos"` or `"neg"`.
+#' @param ppm Optional positive m/z tolerance in ppm.
+#' @param multicores Optional positive integer number of worker processes.
+#' @param rt_align Optional logic value, controls whether to perform retention time alignment.
+#' @param database_mode Data storage mode. The convenience entry point uses `"memory"` by default;
+#' `"ondisk"` and some `"auto"` require a Python interpreter to be compatible with pickle to run.
+#' @param recursive Whether to search input directories recursively.
+#' @param parameters Advanced parameter override list from [asari_default_parameters()];
+#' Explicit parameters have higher precedence.
 #'
-#' @return 一个`asari_result`对象，包含项目目录、特征表路径、输入文件和有效参数。
+#' @return An `asari_result` object containing the project directory, feature-table paths, input files, and validated parameters.
 #' @export
 asari_process <- function(
     input,
@@ -219,11 +219,11 @@ asari_process <- function(
     database_mode = NULL,
     recursive = FALSE,
     parameters = list()) {
-  # 先完成轻量输入校验，再检查处理真实mzML所需的软件依赖。
+  # Complete lightweight input validation first, and then check the software dependencies required to process real mzML.
   input_files <- .asari_collect_input_files(input, recursive = recursive)
   .asari_check_runtime_dependencies()
 
-  # 合并高级参数并应用公开入口中最常用、最容易理解的显式参数。
+  # Incorporate advanced parameters, then apply the common explicit parameters exposed by the public entry point.
   effective <- .asari_merge_parameters(parameters)
   if (is.null(database_mode) && !("database_mode" %in% names(parameters))) {
     database_mode <- "memory"
@@ -244,12 +244,12 @@ asari_process <- function(
     override_names = names(parameters)
   )
 
-  # 磁盘中间模式需要Python标准库写出与原asari兼容的pickle，提前给出明确错误。
+  # The disk intermediate mode requires the Python standard library to write a pickle file compatible with the original asari and give clear errors in advance.
   if (!identical(effective$database_mode, "memory")) {
     .samples_find_python()
   }
 
-  # 记录运行前已有目录，用差集准确定位本次生成的时间戳项目。
+  # Record the directories present before the run, and the difference set is used to accurately locate the timestamp item generated this time.
   project_pattern <- paste0(
     effective$outdir, "_", effective$project_name, "_*"
   )
@@ -263,9 +263,9 @@ asari_process <- function(
     )
   }
 
-  # 返回最常用结果路径，同时保留输入和有效参数便于复查与复现。
+  # Return the most commonly used result paths, while retaining input and valid parameters for review and reproduction.
   project_dir <- normalizePath(generated_projects[[1L]], mustWork = TRUE)
-  # 输出文件名允许高级参数覆盖，因此返回路径必须使用最终生效名称。
+  # The output file name allows advanced parameter overrides, so the return path must use the final effective name.
   feature_table_name <- effective$output_feature_table
   result <- list(
     project_dir = project_dir,
@@ -283,18 +283,18 @@ asari_process <- function(
   invisible(result)
 }
 
-#' 返回一份独立的asariR默认参数
+#' Returns a separate copy of asariR's default parameters
 #'
-#' @return 一份可以安全修改的具名列表。
+#' @return A named list that can be safely modified.
 #' @export
 asari_default_parameters <- function() {
   default_parameters()
 }
 
-# 打印简洁结果摘要，避免用户自己寻找时间戳输出目录。
+# Print a concise summary of results to avoid users looking for the timestamp output directory themselves.
 #' @export
 print.asari_result <- function(x, ...) {
-  # 接收并忽略额外打印参数，以符合R的S3打印方法约定。
+  # Accepts and ignores extra print parameters to conform to R's S3 print method convention.
   dots <- list(...)
   invisible(dots)
   cat("asariR processing completed.\n")

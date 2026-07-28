@@ -1,4 +1,4 @@
-# samples.py 的 9 个 def 必须逐一存在明确的 R 对应函数。
+# Each of the 9 defs in samples.py must have a clear R corresponding function.
 test_that("all 9 Python samples defs have explicit R counterparts", {
   expected_functions <- c(
     "SimpleSample__init__",
@@ -12,14 +12,14 @@ test_that("all 9 Python samples defs have explicit R counterparts", {
     "SimpleSample_load_intermediate"
   )
 
-  # 数量必须恰好为 9，并且每个名称都解析为函数。
+  # The number must be exactly 9, and each name resolves to a function.
   expect_length(expected_functions, 9L)
   expect_true(all(vapply(expected_functions, function(name) {
     exists(name, mode = "function", inherits = TRUE)
   }, logical(1))))
 })
 
-# 创建 tests 使用的最小 registry；字段与 workflow.register_samples 输出一致。
+# Create a minimal registry used by tests; fields are consistent with workflow.register_samples output.
 make_sample_registry <- function(data_location = tempfile(fileext = ".json"),
                                  sample_data = list(
                                    list_mass_tracks = list(
@@ -41,14 +41,14 @@ make_sample_registry <- function(data_location = tempfile(fileext = ".json"),
   )
 }
 
-# 创建可变实验对象，以保留 extract_ms2 对 parameters 的更新。
+# Create a mutable experiment object to retain extract_ms2 updates to parameters.
 make_sample_experiment <- function(output_dir = tempdir()) {
   experiment <- new.env(parent = emptyenv())
   experiment$parameters <- list(ms2_spectra_outdir = output_dir)
   experiment
 }
 
-# 验证构造器逐字段复制 registry，并正确初始化 Python 对象状态。
+# Verify that the constructor copies the registry field-by-field and initializes the Python object state correctly.
 test_that("SimpleSample constructor preserves fields and mutable state", {
   registry <- make_sample_registry()
   experiment <- make_sample_experiment()
@@ -78,7 +78,7 @@ test_that("SimpleSample constructor preserves fields and mutable state", {
   expect_null(sample$mz_calibration_function)
 })
 
-# Python property 每次从私有 registry 读取，而不是使用可能过期的公开副本。
+# Python properties are read from a private registry each time, rather than using a potentially out-of-date public copy.
 test_that("list_scan_numbers property reads the current registry value", {
   registry <- list2env(make_sample_registry(), parent = emptyenv())
   sample <- SimpleSample__init__(registry, database_mode = "memory")
@@ -93,7 +93,7 @@ test_that("list_scan_numbers property reads the current registry value", {
   )
 })
 
-# memory 模式应直接返回同一个质量轨迹，静态入口和实例入口结果一致。
+# The memory mode should directly return the same mass track, and the static entry and instance entry results are consistent.
 test_that("mass tracks are returned directly when already in memory", {
   registry <- make_sample_registry()
   sample <- SimpleSample__init__(registry, database_mode = "memory")
@@ -112,7 +112,7 @@ test_that("mass tracks are returned directly when already in memory", {
   )
 })
 
-# ondisk 模式不缓存质量轨迹，而是通过 _get_sample_data 按需加载 JSON。
+# ondisk mode does not cache mass track, but loads JSON on demand through _get_sample_data.
 test_that("mass tracks are loaded lazily in ondisk mode", {
   skip_if_not_installed("jsonlite")
   json_path <- tempfile(fileext = ".json")
@@ -131,7 +131,7 @@ test_that("mass tracks are loaded lazily in ondisk mode", {
                SimpleSample__retrieve_from_disk(sample))
 })
 
-# 校准记录必须包含 Python 原函数返回的四个键，并反映对象的最新状态。
+# The calibration record must contain the four keys returned by the Python original function and reflect the latest state of the object.
 test_that("RT calibration records contain current sample state", {
   sample <- SimpleSample__init__(make_sample_registry(), database_mode = "memory")
   sample$rt_landmarks <- c(10L, 20L)
@@ -149,7 +149,7 @@ test_that("RT calibration records contain current sample state", {
   expect_equal(records$reverse_rt_cal_dict, c(`10` = 11L, `20` = 19L))
 })
 
-# 普通 JSON 和 ZIP 中第一项 JSON 都应恢复相同的 Python dict/list 结构。
+# Both normal JSON and the first JSON item in a ZIP should restore the same Python dict/list structure.
 test_that("load_intermediate reads JSON and zipped JSON", {
   skip_if_not_installed("jsonlite")
   json_path <- tempfile(fileext = ".json")
@@ -174,7 +174,7 @@ test_that("load_intermediate reads JSON and zipped JSON", {
   expect_true(direct$flag)
 })
 
-# json_tricks 保存的 numpy 标记必须恢复成 R 向量，而不是暴露编码器内部字典。
+# The numpy tokens saved by json_tricks must be restored to R vectors rather than exposing the encoder internal dictionary.
 test_that("load_intermediate decodes common json_tricks numpy markers", {
   skip_if_not_installed("jsonlite")
   json_path <- tempfile(fileext = ".json")
@@ -191,7 +191,7 @@ test_that("load_intermediate decodes common json_tricks numpy markers", {
   expect_equal(decoded$intensity, c(1L, 2L, 3L))
 })
 
-# Python pickle 和 ZIP 中 pickle 都通过转换桥接恢复常见 asari 数据类型。
+# Both Python pickle and pickle in ZIP recover common asari data types through conversion bridges.
 test_that("load_intermediate reads Python pickle and zipped pickle", {
   skip_if_not_installed("jsonlite")
   python <- tryCatch(.samples_find_python(), error = function(error) "")
@@ -225,7 +225,7 @@ test_that("load_intermediate reads Python pickle and zipped pickle", {
   expect_equal(unlist(direct$values), c(1L, 2L))
 })
 
-# 使用可注入 Spectrum/save_spectra 回调验证 MS2 转换、路径和参数副作用。
+# Verify MS2 transformations, paths, and parameter side effects using the injectable Spectrum/save_spectra callback.
 test_that("extract_ms2 converts spectra and calls the configured exporter", {
   captured <- new.env(parent = emptyenv())
   experiment <- make_sample_experiment(tempdir())
@@ -265,7 +265,7 @@ test_that("extract_ms2 converts spectra and calls the configured exporter", {
   expect_equal(captured$spectra[[1L]]$metadata$precursor_mz, 150)
 })
 
-# 与 Python 的 try/except 一致：缺少 MS2 导出依赖只提示，不抛出错误。
+# Consistent with Python's try/except: missing MS2 export dependencies will only prompt, not throw an error.
 test_that("extract_ms2 reports optional dependency failure without stopping", {
   experiment <- make_sample_experiment()
   registry <- make_sample_registry(sample_data = list(
@@ -282,11 +282,11 @@ test_that("extract_ms2 reports optional dependency failure without stopping", {
     expect_null(SimpleSample_extract_ms2(sample)),
     "Error Extracting MS2 for: sample_1"
   )
-  # 空谱列表会先更新格式，再在 Python 的 save_spectra 名称解析处失败。
+  # An empty spectrum list will first update the format before failing at Python's save_spectra name resolution.
   expect_equal(experiment$parameters$ms2_export_format, "msp")
 })
 
-# 未知扩展名、ZIP 第一项未知以及缺失 registry 字段都必须明确失败。
+# Unknown extensions, unknown first ZIP items, and missing registry fields must all fail explicitly.
 test_that("invalid intermediate files and incomplete registries fail clearly", {
   unknown_path <- tempfile(fileext = ".txt")
   writeLines("not an intermediate", unknown_path)

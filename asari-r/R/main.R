@@ -1,23 +1,23 @@
-# 对应 Python asari/main.py：命令行参数、子命令分派和入口流程。
+# Corresponds to Python asari/main.py: command line parameters, subcommand dispatch and entry process.
 
-# 包版本与 Python asari.__version__ 保持一致。
+# Package versions are consistent with Python asari.__version__.
 ASARI_VERSION <- "1.17.0"
 SUBCOMMANDS <- c("analyze", "process", "annotate", "viz", "join", "list_workflows")
-# 在入口模块内保留独立映射，使main.R不受R包文件加载顺序影响。
+# Maintain independent mapping in the entry module so that main.R is not affected by the loading order of R package files.
 booleandict <- list(
   T = TRUE, F = FALSE, `1` = TRUE, `0` = FALSE,
   True = TRUE, False = FALSE, `TRUE` = TRUE, `FALSE` = FALSE,
   true = TRUE, false = FALSE
 )
 
-# 判断命令行值是否具有 Python 风格的真值。
+# Determines whether a command line value has a Python-style truth value.
 .main_truthy <- function(value) {
   !is.null(value) && length(value) > 0L && !identical(value, FALSE) &&
     !(is.numeric(value) && length(value) == 1L && value == 0) &&
     !(is.character(value) && length(value) == 1L && !nzchar(value))
 }
 
-# 对应 process：发现输入目录中的mzML文件并启动项目处理。
+# Corresponding process: discover the mzML file in the input directory and start project processing.
 process <- function(parameters) {
   list_input_files <- read_project_dir(parameters$input)
   if (length(list_input_files) == 0L) {
@@ -27,24 +27,24 @@ process <- function(parameters) {
   process_project(list_input_files, parameters)
 }
 
-# 对应 analyze：分析一个显式指定的mzML文件。
+# Corresponds to analyze: analyze an explicitly specified mzML file.
 analyze <- function(parameters, args) {
   analyze_single_sample(args$input, parameters = parameters)
 }
 
-# 对应 annotate：根据参数注释用户输入。
+# Corresponds to annotate: annotates user input based on parameters.
 annotate <- function(parameters, args) {
   annotate_project(args$input, parameters = parameters)
 }
 
-# 对应 join：Python原版仅保留未实现占位行为。
+# Corresponds to join: The original Python version only retains the unimplemented placeholder behavior.
 join <- function(parameters, args) {
   invisible(parameters); invisible(args)
   cat("NOT IMPLEMENTED\n")
   invisible(NULL)
 }
 
-# 对应 viz：读取项目并选择完整或推荐特征表。
+# Corresponding viz: Read the project and select full or preferred feature table.
 viz <- function(parameters, args) {
   invisible(parameters)
   tryCatch({
@@ -65,7 +65,7 @@ viz <- function(parameters, args) {
   })
 }
 
-# 对应 update_peak_detection_params：更新自动峰高及三个派生阈值。
+# Corresponds to update_peak_detection_params: updates the automatic peak height and three derived thresholds.
 update_peak_detection_params <- function(parameters, args = NULL) {
   if (isTRUE(parameters$autoheight)) {
     tryCatch({
@@ -86,7 +86,7 @@ update_peak_detection_params <- function(parameters, args = NULL) {
     }
   }
 
-  # Python int() 对正数向零取整，在R中用as.integer对应。
+  # Python int() rounds positive numbers towards zero, corresponding to as.integer in R.
   parameters$min_prominence_threshold <- as.integer(0.33 * parameters$min_peak_height)
   parameters$cal_min_peak_height <- 10 * parameters$min_peak_height
 
@@ -104,13 +104,13 @@ update_peak_detection_params <- function(parameters, args = NULL) {
   parameters
 }
 
-# 对应 update_params_from_CLI 中的内部 __debug_print。
+# Corresponds to the internal __debug_print in update_params_from_CLI.
 `__debug_print` <- function(debug_print, to_print) {
   if (isTRUE(debug_print)) cat(to_print, "\n", sep = "")
   invisible(NULL)
 }
 
-# 读取JSON或YAML参数文件。
+# Read JSON or YAML parameter file.
 .main_read_parameter_file <- function(path) {
   if (!file.exists(path)) stop("Parameter file does not exist: ", path)
   extension <- tolower(tools::file_ext(path))
@@ -122,7 +122,7 @@ update_peak_detection_params <- function(parameters, args = NULL) {
     if (!requireNamespace("yaml", quietly = TRUE)) stop("Reading YAML requires the yaml package.")
     return(yaml::read_yaml(path))
   }
-  # 未知扩展名先按YAML尝试，失败再按JSON，对应CLI声明的两种格式。
+  # For unknown extensions, try YAML first, and then JSON if it fails, corresponding to the two formats declared by the CLI.
   if (requireNamespace("yaml", quietly = TRUE)) {
     parsed <- tryCatch(yaml::read_yaml(path), error = function(error) NULL)
     if (is.list(parsed)) return(parsed)
@@ -131,13 +131,13 @@ update_peak_detection_params <- function(parameters, args = NULL) {
   jsonlite::fromJSON(path, simplifyVector = TRUE)
 }
 
-# 要求参数为正数，对应Python的assert。
+# The parameter is required to be a positive number, corresponding to Python's assert.
 .main_positive <- function(value, message) {
   if (!is.numeric(value) || length(value) != 1L || is.na(value) || value <= 0) stop(message)
   value
 }
 
-# 对应 update_params_from_CLI：CLI > 参数文件 > 默认参数。
+# Corresponds to update_params_from_CLI: CLI > Parameter file > Default parameters.
 update_params_from_CLI <- function(parameters, args, debug_print = FALSE) {
   if (is.null(args)) stop("No arguments provided.")
   if (is.null(parameters)) stop("No parameters provided.")
@@ -161,7 +161,7 @@ update_params_from_CLI <- function(parameters, args, debug_print = FALSE) {
     parameters$ppm <- .main_positive(args$ppm, "PPM must be greater than 0.")
   }
 
-  # 单文件输入在Python中会转成所在目录；文件本身仍保留在args$input供analyze使用。
+  # Single file input will be converted to the directory in Python; the file itself remains in args$input for use by analyze.
   if (.main_truthy(args$input)) {
     if (dir.exists(args$input)) parameters$input <- args$input
     else if (file.exists(args$input)) parameters$input <- dirname(args$input)
@@ -234,7 +234,7 @@ update_params_from_CLI <- function(parameters, args, debug_print = FALSE) {
   parameters
 }
 
-# 对应 initialize_parameters：写入版本号与当前时间戳。
+# Corresponds to initialize_parameters: write the version number and current timestamp.
 initialize_parameters <- function(parameters, args) {
   invisible(args)
   parameters$asari_version <- ASARI_VERSION
@@ -242,7 +242,7 @@ initialize_parameters <- function(parameters, args) {
   parameters
 }
 
-# CLI选项元数据，所有名称与Python argparse定义对应。
+# CLI option metadata, all names correspond to Python argparse definitions.
 .main_cli_spec <- function() {
   list(
     mode = "character", ppm = "integer", input = "character", output = "character",
@@ -260,7 +260,7 @@ initialize_parameters <- function(parameters, args) {
   )
 }
 
-# 转换一个CLI字符串，并在类型无效时给出明确错误。
+# Convert a CLI string and give an explicit error if the type is invalid.
 .main_convert_cli <- function(value, type, name) {
   converted <- switch(type,
     integer = suppressWarnings(as.integer(value)),
@@ -273,7 +273,7 @@ initialize_parameters <- function(parameters, args) {
   converted
 }
 
-# 对应 build_parser：在不引入额外R包的情况下解析同名CLI参数。
+# Corresponds to build_parser: parses CLI parameters with the same name without introducing additional R packages.
 build_parser <- function(argv = commandArgs(trailingOnly = TRUE)) {
   if (any(argv %in% c("-v", "--version"))) {
     cat(ASARI_VERSION, "\n", sep = "")
@@ -312,7 +312,7 @@ build_parser <- function(argv = commandArgs(trailingOnly = TRUE)) {
   args
 }
 
-# 对应 run_asari：按run字段调用对应子命令。
+# Corresponds to run_asari: call the corresponding subcommand according to the run field.
 run_asari <- function(parameters, args = NULL) {
   run <- parameters$run
   if (identical(run, "process")) process(parameters)
@@ -327,7 +327,7 @@ run_asari <- function(parameters, args = NULL) {
   else cat("Expecting one of the subcommands: ", paste(SUBCOMMANDS, collapse = ", "), ".\n", sep = "")
 }
 
-# 对应 main：创建独立默认参数、应用CLI覆盖并运行子命令。
+# Corresponds to main: Create independent default parameters, apply CLI overrides and run subcommands.
 main <- function(argv = commandArgs(trailingOnly = TRUE)) {
   cat("\n\n~~~~~~~ Hello from Asari (", ASARI_VERSION, ") ~~~~~~~~~\n\n", sep = "")
   parameters <- default_parameters()

@@ -2,7 +2,7 @@ source(file.path("R", "tools_merge.R"), local = FALSE)
 
 test_that("bin_by_median按动态中位数分箱", {
   tuples <- list(list(1, "a"), list(1.1, "b"), list(3, "c"))
-  # Python返回list-of-lists，R中也保留每个分箱为list，不自动简化为字符向量。
+  # Python returns list-of-lists. R also retains each bin as a list and does not automatically simplify it to a character vector.
   expect_identical(
     bin_by_median(tuples, function(value) 0.5),
     list(list("a", "b"), list("c"))

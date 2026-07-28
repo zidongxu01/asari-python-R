@@ -1,9 +1,9 @@
-# 对应 Python asari/dashboard.py：项目读取、浏览数据准备和可注入Dashboard服务。
+# Corresponds to Python asari/dashboard.py: project reading, browsing data preparation and injectable Dashboard services.
 
-# 本模块自己定义NULL后备值，避免依赖gcms.R的加载顺序。
+# This module defines its own NULL fallback value to avoid relying on the loading order of gcms.R.
 .dashboard_or <- function(value, fallback) if (is.null(value)) fallback else value
 
-# 对应 epd_convert：拆成以feature id和empCpd id为键的两个字典。
+# Corresponds to epd_convert: split into two dictionaries with feature id and empCpd id as keys.
 epd_convert <- function(epd_dict) {
   peaks <- list(); compounds <- list()
   for (key in names(epd_dict)) {
@@ -20,7 +20,7 @@ epd_convert <- function(epd_dict) {
   list(peaks, compounds)
 }
 
-# 对应 read_project：读取project、cmap、epd和完整/推荐特征表。
+# Corresponds to read_project: read project, cmap, epd and full/preferred feature tables.
 read_project <- function(datadir, load_sample_limit = 20L) {
   datadir <- normalizePath(datadir)
   if (!requireNamespace("jsonlite", quietly = TRUE)) stop("Reading project JSON requires jsonlite.")
@@ -41,7 +41,7 @@ read_project <- function(datadir, load_sample_limit = 20L) {
   )
 }
 
-# 对应 plot_xic：返回可由前端绘制的散点描述。
+# Corresponds to plot_xic: returns a scatter description that can be drawn by the front end.
 plot_xic <- function(xics, mz_dict, track_id) {
   id <- as.character(track_id)
   list(
@@ -51,14 +51,14 @@ plot_xic <- function(xics, mz_dict, track_id) {
   )
 }
 
-# 按Python track id读取list或dict。
+# Read list or dict by Python track id.
 .dashboard_track <- function(cmap, track_id_number) {
   tracks <- cmap$list_mass_tracks
   key <- as.character(as.integer(track_id_number))
   if (!is.null(names(tracks)) && key %in% names(tracks)) tracks[[key]] else tracks[[as.integer(track_id_number) + 1L]]
 }
 
-# 对应 cmapplot_mass_tracks：返回复合轨迹绘图描述。
+# Corresponds to cmapplot_mass_tracks: Returns the composite mass track drawing description.
 cmapplot_mass_tracks <- function(cmap, rt_list, color, track_id_number) {
   id <- as.integer(track_id_number)
   track <- .dashboard_track(cmap, id)
@@ -70,7 +70,7 @@ cmapplot_mass_tracks <- function(cmap, rt_list, color, track_id_number) {
   )
 }
 
-# 对应 convert_dict_html。
+# Corresponds to convert_dict_html.
 convert_dict_html <- function(d, title = "") {
   info <- list(
     c("id_number: ", d$id_number, " - ", "parent_masstrack_id: ", d$parent_masstrack_id, " - ", "parent_epd_id: ", .dashboard_or(d$parent_epd_id, "")),
@@ -81,13 +81,13 @@ convert_dict_html <- function(d, title = "") {
   paste0(title, paste(vapply(info, function(row) paste0("<ul>", paste(row, collapse = " "), "</ul>"), ""), collapse = ""))
 }
 
-# 对应 convert_dict_markdown：排除apex/left_base/right_base。
+# Corresponds to convert_dict_markdown: exclude apex/left_base/right_base.
 convert_dict_markdown <- function(d, title = "") {
   keys <- setdiff(names(d), c("apex", "left_base", "right_base"))
   paste0(title, paste0("- ", keys, ": \t", vapply(d[keys], as.character, ""), "\n", collapse = ""), "\n")
 }
 
-# 对应 track_to_peaks。
+# Corresponds to track_to_peaks.
 track_to_peaks <- function(peakDict) {
   result <- list()
   for (peak in peakDict) {
@@ -97,7 +97,7 @@ track_to_peaks <- function(peakDict) {
   result
 }
 
-# 对应 find_track_by_mz：优先0.1Da内最近轨迹，否则全局最近。
+# Corresponds to find_track_by_mz: give priority to the nearest track within 0.1Da, otherwise the global closest.
 find_track_by_mz <- function(cmap, rt_list, mz) {
   invisible(rt_list)
   tracks <- unname(cmap$list_mass_tracks)
@@ -107,18 +107,18 @@ find_track_by_mz <- function(cmap, rt_list, mz) {
   use[[order(vapply(use, `[[`, 0, 1L), vapply(use, `[[`, 0, 2L))[[1L]]]][[2L]]
 }
 
-# 对应 find_a_good_peak：返回首个峰形和选择性都大于0.9的峰。
+# Corresponds to find_a_good_peak: Return the first peak with peak shape and selectivity greater than 0.9.
 find_a_good_peak <- function(peakDict) {
   Filter(function(peak) peak$goodness_fitting > 0.9 && peak$cSelectivity > 0.9, peakDict)[[1L]]
 }
 
-# 读取Python编号字典，支持字符键或R位置。
+# Read a Python number dictionary, supporting character keys or R positions.
 .dashboard_dict_value <- function(dictionary, key0) {
   key <- as.character(key0)
   if (!is.null(names(dictionary)) && key %in% names(dictionary)) dictionary[[key]] else dictionary[[as.integer(key0) + 1L]]
 }
 
-# 对应 prepare_rt_alignment：补齐映射并计算每个样本的RT偏差。
+# Corresponds to prepare_rt_alignment: completes the mapping and calculates the RT deviation of each sample.
 prepare_rt_alignment <- function(cmap) {
   sample_maps <- lapply(cmap$rt_records, `[[`, "reverse_rt_cal_dict")
   rt_length <- as.integer(cmap$rt_length)
@@ -141,7 +141,7 @@ prepare_rt_alignment <- function(cmap) {
   result
 }
 
-# 对应 get_summary_panel：返回前端渲染所需的摘要指标和图数据。
+# Corresponds to get_summary_panel: returns summary indicators and graph data required for front-end rendering.
 get_summary_panel <- function(project_desc, peakDict, epdDict, Ftable, cmap) {
   bins <- as.integer(sqrt(nrow(Ftable)))
   list(
@@ -160,7 +160,7 @@ get_summary_panel <- function(project_desc, peakDict, epdDict, Ftable, cmap) {
   )
 }
 
-# 以下六个函数对应dashboard()内部def，显式拆出便于逐项测试。
+# The following six functions correspond to the internal def of dashboard() and are explicitly removed to facilitate testing one by one.
 .dashboard_feature_info_by_feature_id <- function(feature_number, peakDict) {
   peak <- peakDict[[paste0("F", as.integer(feature_number))]]
   if (is.null(peak)) sprintf("<p>Feature info not found - %d.</p>", feature_number) else convert_dict_html(peak)
@@ -194,7 +194,7 @@ get_summary_panel <- function(project_desc, peakDict, epdDict, Ftable, cmap) {
   data.frame(x = subset$mz, y0 = 0, y1 = subset$peak_area)
 }
 
-# 对应 dashboard：构建浏览状态；如提供server适配器则启动交互服务。
+# Corresponds to dashboard: build browsing status; if server adapter is provided, interactive service is started.
 dashboard <- function(project_desc, cmap, epd, Ftable, sample_limit = 20L) {
   invisible(sample_limit)
   cat("//*Asari dashboard*//   Press Control-C to exit.\n")

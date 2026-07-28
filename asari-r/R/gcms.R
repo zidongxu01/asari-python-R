@@ -1,6 +1,6 @@
-# 对应 Python asari/gcms.py：GC-HRMS伪质谱构建、谱库检索和注释导出。
+# Corresponds to Python asari/gcms.py: GC-HRMS pseudo-spectrum construction, spectral library retrieval and annotation export.
 
-# NamedTuple PseudoSpectrum的R对应。
+# R counterpart of NamedTuple PseudoSpectrum.
 PseudoSpectrum <- function(id, rtime, RI, rounded_mzs, num_features, members, peaks, annotation) {
   structure(list(
     id = id, rtime = rtime, RI = RI, rounded_mzs = rounded_mzs,
@@ -9,7 +9,7 @@ PseudoSpectrum <- function(id, rtime, RI, rounded_mzs, num_features, members, pe
   ), class = c("PseudoSpectrum", "list"))
 }
 
-# NamedTuple GC_lib_entry的R对应。
+# NamedTuple R counterpart of GC_lib_entry.
 GC_lib_entry <- function(id, inchikey, name, RI, exact_mass, compound_formula,
                          rounded_list, peaks, base_peak, meta_text) {
   structure(list(
@@ -20,14 +20,14 @@ GC_lib_entry <- function(id, inchikey, name, RI, exact_mass, compound_formula,
   ), class = c("GC_lib_entry", "list"))
 }
 
-# 将两列峰matrix转换成JSON风格的行list。
+# Convert the two-column peak matrix into a JSON-style row list.
 .gcms_matrix_rows <- function(value) {
   value <- as.matrix(value)
   if (nrow(value) == 0L) return(list())
   lapply(seq_len(nrow(value)), function(ii) as.numeric(value[ii, ]))
 }
 
-# 对应 load_gcms_dbfile：仅接受MSP和JSON。
+# Corresponds to load_gcms_dbfile: only accepts MSP and JSON.
 load_gcms_dbfile <- function(infile) {
   if (grepl("\\.msp$", infile, ignore.case = TRUE)) {
     return(msp_standarize(parse_msp_to_listdict(infile), MSP_dict))
@@ -40,7 +40,7 @@ load_gcms_dbfile <- function(infile) {
   NULL
 }
 
-# 对应 reformat_gcms_lib：把不统一的MSP记录转换成固定GC_lib_entry。
+# Corresponds to reformat_gcms_lib: Convert non-uniform MSP records into fixed GC_lib_entry.
 reformat_gcms_lib <- function(
     list_cpd_standards, peaks_key = "peaks", rt_key = "RETENTIONTIME",
     inchi_key = "InChIKey", name_key = "Name", mw_key = "ExactMass",
@@ -67,10 +67,10 @@ reformat_gcms_lib <- function(
   result
 }
 
-# 空值替代运算符，便于复现dict.get默认值。
+# The null value replacement operator makes it easy to reproduce the default value of dict.get.
 `%||%` <- function(value, fallback) if (is.null(value)) fallback else value
 
-# 对应 json_pseudospectra_to_msp：逐记录输出MSP文本。
+# Corresponds to json_pseudospectra_to_msp: output MSP text record by record.
 json_pseudospectra_to_msp <- function(records, outfile = "test.msp") {
   lines <- character()
   for (entry in records) {
@@ -94,13 +94,13 @@ json_pseudospectra_to_msp <- function(records, outfile = "test.msp") {
   invisible(NULL)
 }
 
-# 对应 designate_base_peak：强度最大值首次出现的峰。
+# Corresponds to designate_base_peak: the peak where the maximum intensity value first appears.
 designate_base_peak <- function(peaks) {
   peak_list <- if (is.matrix(peaks)) .gcms_matrix_rows(peaks) else peaks
   peak_list[[which.max(vapply(peak_list, `[[`, 0, 2L))]]
 }
 
-# 对应三个强度过滤函数，全部保留Python严格不等号。
+# Corresponds to three intensity filter functions, all of which retain the Python strict inequality sign.
 filter_peaks_by_intensity_factor <- function(peaks, base_peak_intensity, filter_factor = 100) {
   upper <- base_peak_intensity * filter_factor
   lower <- base_peak_intensity / filter_factor
@@ -115,7 +115,7 @@ filter_features_by_low_intensity_factor <- function(features, base_peak_intensit
   Filter(function(feature) feature$peak_area > lower, features)
 }
 
-# 对应 filter_against_libentry：先按四舍五入整数m/z筛选候选。
+# Corresponds to filter_against_libentry: first filter candidates by rounded integer m/z.
 filter_against_libentry <- function(query_spectrum, libentry) {
   selected <- query_spectrum$rounded_mzs %in% libentry$rounded_list
   list(
@@ -124,19 +124,19 @@ filter_against_libentry <- function(query_spectrum, libentry) {
   )
 }
 
-# 对应 find_entries_in_rtwindow：RI距离严格小于tol。
+# Corresponds to find_entries_in_rtwindow: RI distance is strictly smaller than tol.
 find_entries_in_rtwindow <- function(query, gclib, tol = 30) {
   Filter(function(entry) abs(query - entry$RI) < tol, gclib)
 }
 
-# 对应 read_fit_KovatsIndex_rtime：用LOWESS拟合第二列RT到第一列RI。
+# Corresponds to read_fit_KovatsIndex_rtime: Use LOWESS to fit the second column RT to the first column RI.
 read_fit_KovatsIndex_rtime <- function(KovatsIndex_file, sep = "\t", frac = 0.3) {
   kovats <- utils::read.table(KovatsIndex_file, sep = sep, header = TRUE, check.names = FALSE)
   fit <- stats::lowess(x = as.numeric(kovats[[2L]]), y = as.numeric(kovats[[1L]]), f = frac)
   cbind(fit$x, fit$y)
 }
 
-# 对应 append_kovats_index：asari秒单位先除以60再线性插值。
+# Corresponds to append_kovats_index: the asari second unit is first divided by 60 and then linearly interpolated.
 append_kovats_index <- function(list_features, ri_model) {
   lapply(list_features, function(feature) {
     feature$RI <- as.numeric(stats::approx(
@@ -146,7 +146,7 @@ append_kovats_index <- function(list_features, ri_model) {
   })
 }
 
-# 对应 port_pseudospectrum_to_json。
+# Corresponds to port_pseudospectrum_to_json.
 port_pseudospectrum_to_json <- function(PS, normalize_intensity = FALSE) {
   peaks <- PS$peaks
   if (isTRUE(normalize_intensity)) peaks[, 2L] <- peaks[, 2L] / max(peaks[, 2L])
@@ -157,7 +157,7 @@ port_pseudospectrum_to_json <- function(PS, normalize_intensity = FALSE) {
   )
 }
 
-# 对应 serialize_annotated_empCpds：仅转换两个NumPy数组字段。
+# Corresponds to serialize_annotated_empCpds: converts only two NumPy array fields.
 serialize_annotated_empCpds <- function(list_empCpds) {
   lapply(list_empCpds, function(entry) {
     entry$peaks_in_lib <- .gcms_matrix_rows(entry$peaks_in_lib)
@@ -166,20 +166,20 @@ serialize_annotated_empCpds <- function(list_empCpds) {
   })
 }
 
-# 对应 ri_penalty_function：单侧sigmoid RI惩罚。
+# Corresponds to ri_penalty_function: unilateral sigmoid RI penalty.
 ri_penalty_function <- function(abs_ri_delta, min_delta = 1, max_delta = 100) {
   if (abs_ri_delta > max_delta) 0
   else if (abs_ri_delta < min_delta) 1
   else 2 / (1 + exp(exp(1) * abs_ri_delta / max_delta))
 }
 
-# 按feature id提取data.frame行。
+# Extract data.frame rows by feature id.
 .gcms_feature_row <- function(feature_dataframe, id) {
   if (is.null(rownames(feature_dataframe))) stop("feature_dataframe requires feature IDs as row names.")
   as.numeric(feature_dataframe[as.character(id), , drop = TRUE])
 }
 
-# 对应 filter_peaks_by_penalized_distance。
+# Corresponds to filter_peaks_by_penalized_distance.
 filter_peaks_by_penalized_distance <- function(
     selected_features, seed_feature, feature_dataframe,
     min_ri_delta = 1, max_ri_delta = 100, feature_distance_filter = 0.5) {
@@ -195,7 +195,7 @@ filter_peaks_by_penalized_distance <- function(
   }, selected_features)
 }
 
-# 对应 find_all_matches_centurion_indexed_list。
+# Corresponds to find_all_matches_centurion_indexed_list.
 find_all_matches_centurion_indexed_list <- function(query_mz, mz_centurion_tree, limit_ppm = 5) {
   key <- as.integer(query_mz * 100)
   tolerance <- query_mz * limit_ppm * 1e-6
@@ -208,7 +208,7 @@ find_all_matches_centurion_indexed_list <- function(query_mz, mz_centurion_tree,
   result
 }
 
-# 构建GC特征的百分之一m/z索引。
+# Construct the hundredth m/z index of the GC feature.
 .gcms_centurion_tree <- function(features) {
   tree <- list()
   for (feature in features) {
@@ -218,7 +218,7 @@ find_all_matches_centurion_indexed_list <- function(query_mz, mz_centurion_tree,
   tree
 }
 
-# 对应 get_matched_features_per_cpd：按绝对m/z和RI窗口返回唯一feature id。
+# Corresponds to get_matched_features_per_cpd: returns unique feature id by absolute m/z and RI window.
 get_matched_features_per_cpd <- function(cpd, mz_centurion_tree, mz_tolerance_da, ri_tolerance) {
   ids <- character()
   for (row in seq_len(nrow(cpd$peaks))) {
@@ -235,7 +235,7 @@ get_matched_features_per_cpd <- function(cpd, mz_centurion_tree, mz_tolerance_da
   unique(ids)
 }
 
-# 对应 distill_correlated_features：相关总和最高者为quant feature。
+# Corresponds to distill_correlated_features: the one with the highest correlation sum is the quant feature.
 distill_correlated_features <- function(matched_feature_ids, feature_dataframe, corr_cutoff) {
   intensities <- feature_dataframe[matched_feature_ids, , drop = FALSE]
   correlations <- stats::cor(t(as.matrix(intensities)), use = "pairwise.complete.obs")
@@ -244,7 +244,7 @@ distill_correlated_features <- function(matched_feature_ids, feature_dataframe, 
   list(quant, selected)
 }
 
-# 对应 get_seeded_pseudospectrum：在RI窗口围绕seed构建伪谱。
+# Corresponds to get_seeded_pseudospectrum: builds a pseudospectrum around seed in the RI window.
 get_seeded_pseudospectrum <- function(
     seed_tag, ref_ri, seed_feature, list_features, feature_dataframe,
     min_ri_delta = 1, max_ri_delta = 100, low_peak_filter_factor = 1000,
@@ -273,7 +273,7 @@ get_seeded_pseudospectrum <- function(
   )
 }
 
-# 对应 get_spaced_top_features：每个RI区间选择排序列表中首个特征。
+# Corresponds to get_spaced_top_features: select the first feature in the sorted list for each RI interval.
 get_spaced_top_features <- function(list_features_sorted, ri_gap = 100) {
   selected <- list()
   for (lower in seq(1000, 4499, by = ri_gap)) {
@@ -283,7 +283,7 @@ get_spaced_top_features <- function(list_features_sorted, ri_gap = 100) {
   selected
 }
 
-# 对应 iterative_build_pseudospectra_by_penalizeddistance。
+# Corresponds to iterative_build_pseudospectra_by_penalizeddistance.
 iterative_build_pseudospectra_by_penalizeddistance <- function(
     list_features_sorted, feature_dataframe, init_core_features = character(),
     min_ri_delta = 1, max_ri_delta = 100, low_peak_filter_factor = 1000,
@@ -304,7 +304,7 @@ iterative_build_pseudospectra_by_penalizeddistance <- function(
         newly_accounted <- c(newly_accounted, new$members)
       }
     }
-    # Python源码漏接union返回值会无限循环；R版保留意图并在无进展时退出。
+    # If the Python source code misses the union return value, it will loop infinitely; the R version retains the intention and exits when there is no progress.
     updated <- union(core_features, newly_accounted)
     if (length(updated) == length(core_features)) break
     core_features <- updated
@@ -312,7 +312,7 @@ iterative_build_pseudospectra_by_penalizeddistance <- function(
   list(spectra, core_features)
 }
 
-# 对应 have_basepeak_molecularion。
+# Corresponds to have_basepeak_molecularion.
 have_basepeak_molecularion <- function(base_mz, mole_mz, peaks, mz_tolerance_da = 0.005) {
   peaks <- as.matrix(peaks)
   list(
@@ -321,7 +321,7 @@ have_basepeak_molecularion <- function(base_mz, mole_mz, peaks, mz_tolerance_da 
   )
 }
 
-# 调用可注入的ms_entropy后端；无后端时使用匹配峰归一化强度的JS相似度近似。
+# Calls the injectable ms_entropy backend; without backend uses a JS similarity approximation that matches peak normalized intensities.
 .gcms_entropy_similarity <- function(query, reference, tolerance) {
   backend <- getOption("asariR.entropy_similarity")
   if (is.function(backend)) return(as.numeric(backend(query, reference, tolerance)))
@@ -338,7 +338,7 @@ have_basepeak_molecularion <- function(base_mz, mole_mz, peaks, mz_tolerance_da 
   max(0, 1 - (entropy(midpoint) - (entropy(q) + entropy(r)) / 2) / log(2))
 }
 
-# 对应 batch_lib_search_score：按m/z和RI召回、按相关性精炼并计算双评分。
+# Corresponds to batch_lib_search_score: recall by m/z and RI, refine by correlation and calculate dual scores.
 batch_lib_search_score <- function(
     list_cpds, list_features, dict_features, feature_dataframe,
     mz_tolerance_da = 0.005, ri_tolerance = 30, cosine_penalty = 1,
@@ -372,7 +372,7 @@ batch_lib_search_score <- function(
   results
 }
 
-# 对应 curate_batch_lib_search_result：按任一分数阈值整理empCpd和feature记录。
+# Corresponds to curate_batch_lib_search_result: sort empCpd and feature records according to any score threshold.
 curate_batch_lib_search_result <- function(
     matched_results, mz_tolerance_da = 0.005,
     score_cutoff_cosine = 0.5, score_cutoff_entropy = 0.4) {
@@ -412,7 +412,7 @@ curate_batch_lib_search_result <- function(
   list(empirical, annotations)
 }
 
-# 对应 write_tsv_feature_anno：逐注释feature写出17列。
+# Corresponds to write_tsv_feature_anno: write 17 columns one by one annotate feature.
 write_tsv_feature_anno <- function(feature_anno_list, dict_features, dict_lib_entries, outfile) {
   header <- c(
     "feature", "mz", "rtime", "RI", "empCpd", "quant_ion",
@@ -438,7 +438,7 @@ write_tsv_feature_anno <- function(feature_anno_list, dict_features, dict_lib_en
   invisible(NULL)
 }
 
-# 对应 write_tsv_empCpd_anno：每个经验化合物输出汇总行。
+# Corresponds to write_tsv_empCpd_anno: output summary rows for each empirical compound.
 write_tsv_empCpd_anno <- function(list_empCpds, dict_features, dict_lib_entries, outfile) {
   header <- c(
     "empCpd", "name", "inchikey", "formula", "lib_exact_mass",
@@ -464,7 +464,7 @@ write_tsv_empCpd_anno <- function(list_empCpds, dict_features, dict_lib_entries,
   invisible(NULL)
 }
 
-# 对应 get_clusters_by_ri_hcl：相关距离乘RI惩罚后进行Ward层次聚类。
+# Corresponds to get_clusters_by_ri_hcl: Ward hierarchical clustering is performed after multiplying the correlation distance by RI penalty.
 get_clusters_by_ri_hcl <- function(
     feature_dataframe_sorted, dict_features,
     ri_penalty_function = get("ri_penalty_function", inherits = TRUE),
@@ -499,7 +499,7 @@ get_clusters_by_ri_hcl <- function(
   list(as.integer(clusters), unname(cluster_dict))
 }
 
-# 对应 extend_cluster：以原cluster最高面积feature为seed扩展相关成员。
+# Corresponds to extend_cluster: use the highest area feature of the original cluster as the seed to extend the relevant members.
 extend_cluster <- function(
     fcluster, featureDict, list_features, feature_dataframe,
     ri_tolerance = 50, correlation_cut = 0.7) {
@@ -517,7 +517,7 @@ extend_cluster <- function(
   list(c(fcluster, selected), seed)
 }
 
-# 对应 format_fcluster_to_pseudospectrum。
+# Corresponds to format_fcluster_to_pseudospectrum.
 format_fcluster_to_pseudospectrum <- function(selected_features, seed_feature) {
   PseudoSpectrum(
     seed_feature$id_number, seed_feature$rtime, seed_feature$RI,
@@ -530,7 +530,7 @@ format_fcluster_to_pseudospectrum <- function(selected_features, seed_feature) {
   )
 }
 
-# 对应 iterative_build_pseudospectra_by_hcl。
+# Corresponds to iterative_build_pseudospectra_by_hcl.
 iterative_build_pseudospectra_by_hcl <- function(
     list_features_sorted, feature_dataframe, init_core_features = character(),
     step_size = 2000, hcl_distance_cut = 1, ri_tolerance = 50,
@@ -569,7 +569,7 @@ iterative_build_pseudospectra_by_hcl <- function(
   list(spectra, core)
 }
 
-# 对应 batch_lib_search_by_basepeaks：以库base peak为seed建立并评分伪谱。
+# Corresponds to batch_lib_search_by_basepeaks: Use the library base peak as the seed to create and score pseudo-spectra.
 batch_lib_search_by_basepeaks <- function(
     list_lib_entries, list_features, feature_dataframe,
     ms2_tolerance_in_ppm = 5, ms2_tolerance_in_da = 0.005,
@@ -616,7 +616,7 @@ batch_lib_search_by_basepeaks <- function(
   results
 }
 
-# 对应 export_feature_annotation_bybasepeaksearch。
+# Corresponds to export_feature_annotation_bybasepeaksearch.
 export_feature_annotation_bybasepeaksearch <- function(
     matched_results, feature_dataframe, score_cutoff_cosine = 0.5,
     score_cutoff_entropy = 0.4, corr_cutoff = 0.7, mz_tolerance_ppm = 5) {
@@ -666,7 +666,7 @@ export_feature_annotation_bybasepeaksearch <- function(
   list(empirical, annotations)
 }
 
-# 对应 group_pseudospectra_from_features：用最高面积feature依次建立RT窗口伪谱。
+# Corresponds to group_pseudospectra_from_features: Use the highest area feature to create RT window pseudospectra in sequence.
 group_pseudospectra_from_features <- function(
     list_features, rtime_window_in_seconds = 1, bin_fraction = 0.2) {
   spectra <- list()
@@ -678,7 +678,7 @@ group_pseudospectra_from_features <- function(
         in_range <- Filter(function(candidate) {
           abs(candidate$rtime - feature$rtime) < rtime_window_in_seconds
         }, list_features)
-        # 保留Python原实现：peaks每行重复使用seed的mz和peak_area。
+        # Keep the original Python implementation: peaks reuses mz and peak_area of seed for each row.
         peaks <- matrix(
           rep(c(feature$mz, feature$peak_area), length(in_range)),
           ncol = 2L, byrow = TRUE
@@ -701,7 +701,7 @@ group_pseudospectra_from_features <- function(
   spectra
 }
 
-# 对应 reverse_spec_searches：在RI窗口内分别按熵和反向余弦筛选。
+# Corresponds to reverse_spec_searches: filter by entropy and reverse cosine respectively in the RI window.
 reverse_spec_searches <- function(
     list_pseudo_spectra, list_lib_entries, ri_window = 100,
     mz_tolerance = 0.005, cosine_penalty = 1, score_cutoff = 0.5,
@@ -736,7 +736,7 @@ reverse_spec_searches <- function(
   list(matched_entropy, matched_cosine)
 }
 
-# 对应 export_feature_annotations：输出简洁feature匹配tuple。
+# Corresponds to export_feature_annotations: output simple feature matching tuple.
 export_feature_annotations <- function(matched_list, mz_tolerance_ppm = 5) {
   annotations <- list()
   for (matched in matched_list) {
@@ -754,7 +754,7 @@ export_feature_annotations <- function(matched_list, mz_tolerance_ppm = 5) {
   annotations
 }
 
-# 对应 export_feature_annotation_details：选择联合强度排序最高的quant feature。
+# Corresponds to export_feature_annotation_details: select the quant feature with the highest joint strength ranking.
 export_feature_annotation_details <- function(
     matched_list, feature_dataframe, corr_cutoff = 0.7, mz_tolerance_ppm = 5) {
   empirical <- list()
@@ -799,7 +799,7 @@ export_feature_annotation_details <- function(
   list(empirical, annotations)
 }
 
-# 对应 iterative_reverse_annotation：多轮排除core features并合并两种评分结果。
+# Corresponds to iterative_reverse_annotation: multiple rounds of excluding core features and merging the two scoring results.
 iterative_reverse_annotation <- function(
     list_features, list_lib_entries, feature_dataframe,
     binning_rtime_window_in_seconds = 1, search_ri_window = 50,
@@ -843,7 +843,7 @@ iterative_reverse_annotation <- function(
   )
 }
 
-# 对应两个判等函数。
+# Corresponds to two equality functions.
 is_same_match <- function(epd1, epd2) {
   identical(epd1$inchikey, epd2$inchikey) &&
     identical(epd1$quant_ion, epd2$quant_ion) &&
@@ -853,7 +853,7 @@ is_same_matched_feature <- function(f1, f2) {
   identical(f1$inchikey, f2$inchikey) && identical(f1$quant_ion, f2$quant_ion)
 }
 
-# 对应merge函数：匹配时用新记录字段更新旧记录，否则追加。
+# Corresponds to the merge function: update the old record with the new record field when matching, otherwise append.
 merge_epd_with_list <- function(epd1, list2_epds) {
   matched <- FALSE
   for (ii in seq_along(list2_epds)) {
@@ -877,14 +877,14 @@ merge_feature_with_list <- function(feat, list2_features) {
   list2_features
 }
 
-# 对应 format_arrays_to_lists。
+# Corresponds to format_arrays_to_lists.
 format_arrays_to_lists <- function(epd) {
   epd$peaks_as_features <- .gcms_matrix_rows(epd$peaks_as_features)
   epd$peaks_in_lib <- .gcms_matrix_rows(epd$peaks_in_lib)
   epd
 }
 
-# 对应 cleanup_anno_empcpds_features：合并余弦和熵算法的重复记录。
+# Corresponds to cleanup_anno_empcpds_features: merge duplicate records of cosine and entropy algorithms.
 cleanup_anno_empcpds_features <- function(resultDict) {
   empirical <- list()
   feature_annotations <- list()
@@ -923,7 +923,7 @@ cleanup_anno_empcpds_features <- function(resultDict) {
   list(empirical, feature_annotations)
 }
 
-# 对应 append_anno_json：按feature收集并反向排序(score,name,inchikey)。
+# Corresponds to append_anno_json: collected by feature and sorted in reverse (score, name, inchikey).
 append_anno_json <- function(list_features, search_matched_features) {
   grouped <- list()
   for (entry in search_matched_features) {
@@ -940,7 +940,7 @@ append_anno_json <- function(list_features, search_matched_features) {
   })
 }
 
-# 对应 export_jsonanno_tsv：添加top_match/all_matches后输出固定14列。
+# Corresponds to export_jsonanno_tsv: after adding top_match/all_matches, the output is fixed at 14 columns.
 export_jsonanno_tsv <- function(list_features, outfile) {
   header <- c(
     "id_number", "mz", "RI", "top_match", "all_matches", "rtime",

@@ -1,10 +1,10 @@
-# 对应 Python asari/db/__init__.py 及其三个数据资源的R兼容定位层。
+# Corresponds to Python asari/db/__init__.py and the R-compatible positioning layer of its three data resources.
 
 ASARI_DB_RESOURCES <- c(
   "gcms_libraries.json", "mass_indexed_compounds.pickle", "emp_cpds_trees.pickle"
 )
 
-# 查找数据目录：先使用显式选项，再查已安装R包和当前项目的Python环境。
+# Find the data directory: first use the explicit option, then check the installed R package and the Python environment of the current project.
 .asari_db_directories <- function() {
   explicit <- getOption("asariR.db_dir", Sys.getenv("ASARI_R_DB_DIR", ""))
   installed <- system.file("db", package = "asariR")
@@ -16,7 +16,7 @@ ASARI_DB_RESOURCES <- c(
     Sys.glob(file.path(
       ".venv", "lib", "python*", "site-packages", "asari", "db"
     )),
-    # 测试通常从asari-r/执行，Python环境位于其上一级项目目录。
+    # Tests are typically executed from asari-r/, with the Python environment located in the parent project directory.
     Sys.glob(file.path(
       "..", ".venv", "lib", "python*", "site-packages", "asari", "db"
     ))
@@ -24,7 +24,7 @@ ASARI_DB_RESOURCES <- c(
   unique(Filter(nzchar, c(explicit, installed, python_explicit, project_python)))
 }
 
-# 返回指定数据库资源的实际路径，不使用隐藏默认数据文件。
+# Returns the actual path to the specified database resource without using a hidden default data file.
 asari_db_path <- function(name, mustWork = TRUE) {
   if (!name %in% ASARI_DB_RESOURCES) {
     stop("Unknown asari database resource: ", name, call. = FALSE)
@@ -43,7 +43,7 @@ asari_db_path <- function(name, mustWork = TRUE) {
   if (length(candidates)) candidates[[1L]] else file.path("db", name)
 }
 
-# 按原始格式读取JSON或Python pickle；pickle具体转换复用samples.R的解码器。
+# Read JSON or Python pickle in original format; pickle specifically converts and reuses the decoder of samples.R.
 load_asari_db_resource <- function(name) {
   path <- asari_db_path(name)
   if (endsWith(name, ".json")) {

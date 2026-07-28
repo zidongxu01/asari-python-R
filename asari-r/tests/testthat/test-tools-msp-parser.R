@@ -29,7 +29,7 @@ test_that("宽松MSP峰解析兼容空格逗号和冒号", {
     list(mz = 100, intensity = 45, annotation = "loss:H2O")
   )
   peaks <- parse_peak_line("100 45, 120:30 140 10 note")
-  # Python原解析器会把紧跟在空格对后的120:30视为前一峰的annotation。
+  # The original Python parser will regard 120:30 immediately following the space pair as an annotation of the previous peak.
   expect_equal(vapply(peaks, `[[`, 0, "mz"), c(100, 140))
   expect_identical(peaks[[1L]]$annotation, "120:30")
   expect_identical(peaks[[2L]]$annotation, "note")

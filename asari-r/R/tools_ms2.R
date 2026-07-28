@@ -1,6 +1,6 @@
-# 对应 Python asari/tools/ms2.py：提取、筛选并把MS2谱图匹配到MS1特征。
+# Corresponds to Python asari/tools/ms2.py: extract, filter and match MS2 spectra to MS1 features.
 
-# 将测试注入的谱图或mzML文件统一为标准扫描list。
+# Unify the test injected spectra or mzML files into a standard scan list.
 .ms2_read_spectra <- function(infile) {
   if (is.list(infile)) return(infile)
   if (!requireNamespace("mzR", quietly = TRUE)) {
@@ -20,7 +20,7 @@
   })
 }
 
-# 把matrix或峰tuple list规范化为两列数值matrix。
+# Normalize a matrix or peak tuple list into a two-column numerical matrix.
 .ms2_peak_matrix <- function(peaks) {
   if (is.null(peaks) || length(peaks) == 0L) return(matrix(numeric(), ncol = 2L))
   result <- if (is.matrix(peaks)) peaks[, 1:2, drop = FALSE] else do.call(rbind, lapply(peaks, as.numeric))
@@ -28,7 +28,7 @@
   result
 }
 
-# 对应 extract_all_spectra_form_file：一次提取MS1、MS2和其他级别谱图。
+# Corresponds to extract_all_spectra_form_file: extract MS1, MS2 and other level spectra at one time.
 extract_all_spectra_form_file <- function(infile, min_intensity = 1000, MS2_peak_limit = 50L) {
   ms1 <- list()
   ms2 <- list()
@@ -81,7 +81,7 @@ extract_all_spectra_form_file <- function(infile, min_intensity = 1000, MS2_peak
   list(ms1, ms2, others)
 }
 
-# 对应 regroup_matches_per_file：按数据库INCHIKEY集中谱图匹配。
+# Corresponds to regroup_matches_per_file: concentrate spectral matching by database INCHIKEY.
 regroup_matches_per_file <- function(results) {
   grouped <- list()
   tally <- list()
@@ -101,7 +101,7 @@ regroup_matches_per_file <- function(results) {
   list(grouped, tally)
 }
 
-# 对应 get_ms1_match_to_ms2cluster：选择最高分MS2及窗口内最强MS1峰。
+# Corresponds to get_ms1_match_to_ms2cluster: select the highest scoring MS2 and the strongest MS1 peak in the window.
 get_ms1_match_to_ms2cluster <- function(db_matched_cluster, list_ms1_spectra, mz_tol_ppm = 5, rt_tol = 1) {
   matches <- db_matched_cluster$matched_spectra
   scores <- vapply(matches, `[[`, 0, 4L)
@@ -116,7 +116,7 @@ get_ms1_match_to_ms2cluster <- function(db_matched_cluster, list_ms1_spectra, mz
   list(best_ms2, peaks[[order(intensities)[[length(intensities)]]]])
 }
 
-# 对应 export_table_ms1match_results：每种化合物每个样本输出最佳MS1峰高。
+# Corresponds to export_table_ms1match_results: output the best MS1 peak height for each compound and each sample.
 export_table_ms1match_results <- function(resultDict, cpdDict, outfile) {
   samples <- names(resultDict)
   header1 <- c("NAME", "INCHIKEY", "precursor_mz", "PRECURSORTYPE", "SMILES", "Num Peaks")
@@ -138,7 +138,7 @@ export_table_ms1match_results <- function(resultDict, cpdDict, outfile) {
   invisible(NULL)
 }
 
-# 对应 extract_ms2_form_file：只提取MS2扫描并去除前体离子附近峰。
+# Corresponds to extract_ms2_form_file: extract only MS2 scans and remove peaks near precursor ions.
 extract_ms2_form_file <- function(infile, min_intensity = 1000) {
   result <- list()
   for (spectrum in .ms2_read_spectra(infile)) {
@@ -158,21 +158,21 @@ extract_ms2_form_file <- function(infile, min_intensity = 1000) {
   result
 }
 
-# 对应 get_top_n_ms2_spectra：按峰数量降序选前n张谱。
+# Corresponds to get_top_n_ms2_spectra: select the top n spectra in descending order of peak number.
 get_top_n_ms2_spectra <- function(ms2_spectra, n = 5L) {
   if (length(ms2_spectra) <= n) return(ms2_spectra)
   counts <- vapply(ms2_spectra, function(spectrum) length(spectrum$peaks), 0L)
   ms2_spectra[order(-counts, seq_along(counts))[seq_len(n)]]
 }
 
-# 对应 get_top_n_peaks：按强度降序选前n个峰。
+# Corresponds to get_top_n_peaks: select the top n peaks in descending order of intensity.
 get_top_n_peaks <- function(spectrum, n = 50L) {
   if (length(spectrum) <= n) return(spectrum)
   intensity <- vapply(spectrum, `[[`, 0, 2L)
   spectrum[order(-intensity, seq_along(intensity))[seq_len(n)]]
 }
 
-# 对应 get_best_ms2_spectrum：按全部峰的总强度选择最佳谱图。
+# Corresponds to get_best_ms2_spectrum: select the best spectrum based on the total intensity of all peaks.
 get_best_ms2_spectrum <- function(ms2_spectra) {
   if (length(ms2_spectra) == 0L) return(NULL)
   totals <- vapply(ms2_spectra, function(spectrum) {
@@ -181,7 +181,7 @@ get_best_ms2_spectrum <- function(ms2_spectra) {
   ms2_spectra[[order(-totals, seq_along(totals))[[1L]]]]
 }
 
-# 对应 get_matched_ms2_ms1：先按m/z匹配，再按RT筛选并为每个MS1选最佳MS2。
+# Corresponds to get_matched_ms2_ms1: first match by m/z, then filter by RT and select the best MS2 for each MS1.
 get_matched_ms2_ms1 <- function(LCMS1_features, list_ms2_spectra, rt_tol = 30, ppm_tol = 5) {
   mapping <- complete_mass_paired_mapping(
     vapply(LCMS1_features, `[[`, 0, "mz"),
@@ -202,7 +202,7 @@ get_matched_ms2_ms1 <- function(LCMS1_features, list_ms2_spectra, rt_tol = 30, p
   })
 }
 
-# 对应 match_ms2files_to_features：逐文件累计最佳MS2并写出JSON。
+# Corresponds to match_ms2files_to_features: accumulate the best MS2 file by file and write out JSON.
 match_ms2files_to_features <- function(
     ms1_fulltable,
     list_ms2_files,
@@ -232,7 +232,7 @@ match_ms2files_to_features <- function(
       }
     }
   }
-  # Python当前实现传入整个谱图dict，长度小于20时保持原样。
+  # Python's current implementation passes in the entire spectrum dict and leaves it unchanged if the length is less than 20.
   for (feature_id in names(master)) master[[feature_id]] <- list(master[[feature_id]][[1L]], master[[feature_id]][[2L]])
   if (!requireNamespace("jsonlite", quietly = TRUE)) {
     stop("Writing MS2 JSON requires the optional jsonlite package.", call. = FALSE)

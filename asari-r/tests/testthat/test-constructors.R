@@ -1,4 +1,4 @@
-# constructors.py 的 37 个 def 必须逐一存在明确的 R 对应函数。
+# Each of the 37 defs in constructors.py must have an explicit R corresponding function.
 test_that("all 37 Python constructors defs have explicit R counterparts", {
   expected_functions <- c(
     "MassGrid__init__",
@@ -40,14 +40,14 @@ test_that("all 37 Python constructors defs have explicit R counterparts", {
     "CompositeMap_START__align"
   )
 
-  # 数量必须恰好为 37，并且每个名称都解析为函数。
+  # The number must be exactly 37, and each name resolves to a function.
   expect_length(expected_functions, 37L)
   expect_true(all(vapply(expected_functions, function(name) {
     exists(name, mode = "function", inherits = TRUE)
   }, logical(1))))
 })
 
-# 创建 constructors 测试使用的最小可变 SimpleSample。
+# Creates a minimal mutable SimpleSample used by constructors tests.
 make_constructor_sample <- function(name,
                                     mzs,
                                     intensities,
@@ -77,7 +77,7 @@ make_constructor_sample <- function(name,
   sample
 }
 
-# 创建可供 CompositeMap 和 MassGrid 使用的最小实验 environment。
+# Create a minimal experimental environment that can be used by CompositeMap and MassGrid.
 make_constructor_experiment <- function(samples) {
   experiment <- new.env(parent = emptyenv())
   sample_ids <- names(samples)
@@ -114,7 +114,7 @@ make_constructor_experiment <- function(samples) {
   experiment
 }
 
-# 验证 R environment 构造器保留 Python 对象字段和可变状态。
+# Verify that the R environment constructor preserves Python object fields and mutable state.
 test_that("MassGrid and CompositeMap constructors initialize Python fields", {
   reference <- make_constructor_sample(
     "reference", c(100, 101), list(1:5, 5:1), TRUE
@@ -131,7 +131,7 @@ test_that("MassGrid and CompositeMap constructors initialize Python fields", {
   expect_equal(mass_grid$list_sample_names, "reference")
 })
 
-# Python 参考结果：前三个 m/z 属于一个粗 bin，101 单独成 bin。
+# Python reference results: the first three m/z belong to a coarse bin, and 101 is binned separately.
 test_that("MassGrid bin_track_mzs reproduces ppm centroid bins", {
   self <- new.env(parent = emptyenv())
   self$experiment <- new.env(parent = emptyenv())
@@ -151,7 +151,7 @@ test_that("MassGrid bin_track_mzs reproduces ppm centroid bins", {
   expect_equal(bins[[2L]][[1L]], 101)
 })
 
-# 验证大样本 centroid 路径生成 mz 列和 0-based track ID 样本列。
+# Verify that large sample centroid paths generate mz columns and 0-based track ID sample columns.
 test_that("centroid grid aligns tracks from multiple samples", {
   sample1 <- make_constructor_sample(
     "s1", c(100, 101), list(1:5, 5:1), TRUE
@@ -175,7 +175,7 @@ test_that("centroid grid aligns tracks from multiple samples", {
   expect_length(experiment$all_samples, 2L)
 })
 
-# 验证小样本路径会初始化参考网格并通过 landmark mapping 加入新样本。
+# Verifying the small sample path will initialize the reference grid and add new samples through landmark mapping.
 test_that("sample-wise grid initializes reference and adds every sample", {
   sample1 <- make_constructor_sample(
     "s1", c(100, 101), list(1:5, 5:1), TRUE
@@ -196,7 +196,7 @@ test_that("sample-wise grid initializes reference and adds every sample", {
   expect_identical(CompositeMap, CompositeMap__init__)
 })
 
-# 验证 SciPy interp1d 的区间内插值和两端外推。
+# Validation of SciPy interp1d for interval interpolation and extrapolation of both ends.
 test_that("reference retention times interpolate and extrapolate", {
   self <- new.env(parent = emptyenv())
   self$reference_sample <- make_constructor_sample(
@@ -211,7 +211,7 @@ test_that("reference retention times interpolate and extrapolate", {
   expect_equal(names(result), as.character(0:5))
 })
 
-# Python scipy.maximum_filter1d(size=2, constant) 对该向量返回 1,5,5,4。
+# Python scipy.maximum_filter1d(size=2, constant) returns 1,5,5,4 for this vector.
 test_that("peak area methods reproduce Python boundaries and maximum filter", {
   self <- new.env(parent = emptyenv())
   intensity <- c(1, 5, 2, 4)
@@ -223,7 +223,7 @@ test_that("peak area methods reproduce Python boundaries and maximum filter", {
   expect_null(MassGrid_join(self, NULL))
 })
 
-# 验证 START 嵌套 def 的集合相似度、距离矩阵和树路径行为。
+# Verify set similarity, distance matrix, and tree path behavior of START nested defs.
 test_that("START helper defs reproduce similarity and graph traversal", {
   sample1 <- new.env(parent = emptyenv())
   sample2 <- new.env(parent = emptyenv())
@@ -255,7 +255,7 @@ test_that("START helper defs reproduce similarity and graph traversal", {
   )
 })
 
-# 验证常规 composite 路径按 MassGrid 对应关系叠加样本强度。
+# Verify that the regular composite path overlays sample intensity according to the MassGrid correspondence.
 test_that("build_composite_tracks sums aligned sample mass tracks", {
   reference <- make_constructor_sample(
     "reference", 100, list(as.integer(c(0, 10, 20, 10, 0))), TRUE
@@ -286,7 +286,7 @@ test_that("build_composite_tracks sums aligned sample mass tracks", {
   )
 })
 
-# 验证 sample RT 反向映射、0-based MassGrid row 和 feature table 样本列。
+# Verify sample RT reverse mapping, 0-based MassGrid row, and feature table sample columns.
 test_that("feature extraction and table generation preserve Python indexing", {
   sample <- make_constructor_sample(
     "sample", 100, list(c(0, 10, 20, 30, 20, 10, 0)), TRUE
@@ -310,13 +310,13 @@ test_that("feature extraction and table generation preserve Python indexing", {
   )
   CompositeMap_generate_feature_table(composite)
 
-  # 反向映射把 [1,5] 转成 Python 闭区间 [2,4]，面积为 20+30+20。
+  # The reverse mapping converts [1,5] into a Python closed interval [2,4] with an area of 20+30+20.
   expect_equal(areas, 70)
   expect_equal(composite$FeatureTable$sample, 70)
   expect_equal(composite$FeatureTable$id_number, "F0")
 })
 
-# 验证 landmark 数量严格超过阈值后调用校准函数并写回样本状态。
+# After verifying that the number of landmarks strictly exceeds the threshold, the calibration function is called and the sample status is written back.
 test_that("sample RT calibration selects peaks and writes both mappings", {
   scans <- 0:30
   peak_track <- as.integer(
@@ -360,7 +360,7 @@ test_that("sample RT calibration selects peaks and writes both mappings", {
   expect_equal(sample$rt_landmarks, c(15L, 15L))
 })
 
-# 验证参考 landmark 的 selectivity、Python track ID 0 排除规则和唯一峰检测。
+# Verification reference landmark selectivity, Python track ID 0 exclusion rules and unique peak detection.
 test_that("RT reference selection reproduces Python landmark filtering", {
   scans <- 0:30
   peak_track <- as.integer(
@@ -383,13 +383,13 @@ test_that("RT reference selection reproduces Python landmark filtering", {
 
   selected <- CompositeMap_set_RT_reference(composite, 100000)
 
-  # Python 的 `if ref_ii` 会跳过 0，所以只返回 MassGrid 行 1..4。
+  # Python's `if ref_ii` skips 0, so only MassGrid rows 1..4 are returned.
   expect_length(selected, 4L)
   expect_equal(vapply(selected, `[[`, numeric(1), "ref_id_num"), 1:4)
   expect_equal(reference$rt_landmarks, rep(15L, 4))
 })
 
-# 验证 composite peak detection 会添加 feature ID、RT 并立即生成样本表。
+# Verifying composite peak detection adds feature ID, RT and generates sample table immediately.
 test_that("global peak detection builds experiment features and table", {
   scans <- 0:100
   intensity <- as.integer(
@@ -421,7 +421,7 @@ test_that("global peak detection builds experiment features and table", {
   expect_true(composite$FeatureTable$reference[[1L]] > 0)
 })
 
-# DIMS 路径应为每个样本、每条对应 mass track 取最大强度。
+# The DIMS path should take the maximum intensity for each sample and each corresponding mass track.
 test_that("DIMS feature table uses maximum track intensity", {
   sample <- make_constructor_sample(
     "sample", c(100, 101), list(c(1, 5, 2), c(0, 3, 8)), TRUE

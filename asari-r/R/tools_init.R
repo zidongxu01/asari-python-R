@@ -1,6 +1,6 @@
-# 对应 Python asari/tools/__init__.py：原文件为空，不定义任何def或副作用。
+# Corresponds to Python asari/tools/__init__.py: The original file is empty and does not define any def or side effects.
 
-# 记录已翻译的tools子模块，不主动source、不改变加载顺序。
+# Record the translated tools submodules without actively sourcing or changing the loading order.
 ASARI_TOOL_MODULES <- c(
   "cosine", "entropy_search", "extract_masstracks", "extract_targets",
   "feature_graph", "file_io", "gc_annotation", "gui", "match_features",

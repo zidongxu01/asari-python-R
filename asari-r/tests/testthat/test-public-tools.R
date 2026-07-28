@@ -1,4 +1,4 @@
-# 公开工具测试只加载本文件所需模块，保证每个入口可独立审计。
+# The public tool test only loads the modules required by this file to ensure that each entry can be independently audited.
 source(file.path("R", "default_parameters.R"), local = FALSE)
 source(file.path("R", "utils.R"), local = FALSE)
 source(file.path("R", "mass_functions.R"), local = FALSE)

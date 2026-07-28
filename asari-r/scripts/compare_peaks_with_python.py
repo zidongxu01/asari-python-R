@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 from scipy.signal import find_peaks
 
-# 把 Matplotlib 缓存放到临时目录，避免导入 asari 时写入用户主目录。
+# Put the Matplotlib cache in a temporary directory to avoid writing to the user's home directory when importing asari.
 os.environ.setdefault(
     "MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "asari-matplotlib")
 )
@@ -18,7 +18,7 @@ os.environ.setdefault(
 from asari.peaks import stats_detect_elution_peaks
 
 
-# 固定随机种子，确保每次验证覆盖完全相同的 200 条信号。
+# The random seed is fixed to ensure that each validation covers the exact same 200 signals.
 random = np.random.default_rng(20260718)
 signals: list[np.ndarray] = []
 for _ in range(200):
@@ -26,18 +26,18 @@ for _ in range(200):
     scans = np.arange(number_of_scans, dtype=float)
     signal = random.uniform(0, 20, number_of_scans)
 
-    # 每条信号叠加 1 到 5 个不同高度和宽度的 Gaussian 峰。
+    # Each signal is superimposed with 1 to 5 Gaussian peaks of different heights and widths.
     for _ in range(int(random.integers(1, 6))):
         center = random.uniform(3, number_of_scans - 4)
         sigma = random.uniform(1.2, 8)
         height = random.uniform(100, 5000)
         signal += height * np.exp(-((scans - center) ** 2) / (2 * sigma**2))
 
-    # 使用整数信号，同时覆盖 asari mass track 最常见的数据类型。
+    # Uses integer signals while covering the most common data types for asari mass tracks.
     signals.append(signal.astype(np.int64))
 
 
-# 逐行编码输入，避免依赖 R 侧未安装的 jsonlite。
+# Encode input line by line to avoid relying on jsonlite which is not installed on the R side.
 encoded_signals = "\n".join(
     ",".join(str(int(value)) for value in signal) for signal in signals
 ) + "\n"
@@ -64,7 +64,7 @@ for (line in lines) {{
 """
 
 
-# 一次启动 R 并传入全部信号，减少跨语言进程启动造成的验证开销。
+# Start R once and pass in all signals to reduce verification overhead caused by cross-language process startup.
 completed = subprocess.run(
     ["Rscript", "-e", r_code],
     input=encoded_signals,
@@ -86,7 +86,7 @@ def parse_field(field: str) -> np.ndarray:
     return np.asarray([float(value) for value in field.split(",")])
 
 
-# 对每条信号逐项比较离散位置和连续峰属性。
+# Discrete position and continuous peak attributes are compared on an item-by-item basis for each signal.
 for case_number, (signal, r_line) in enumerate(zip(signals, r_lines), start=1):
     peaks, properties = find_peaks(
         signal,
@@ -106,7 +106,7 @@ for case_number, (signal, r_line) in enumerate(zip(signals, r_lines), start=1):
         properties["widths"],
     ]
 
-    # 离散的峰和 base 位置必须完全相同；连续属性允许浮点舍入误差。
+    # Discrete peak and base positions must be identical; continuous attributes allow floating point rounding errors.
     for field_number, (python_values, r_values) in enumerate(
         zip(python_fields, r_fields), start=1
     ):
@@ -123,14 +123,14 @@ for case_number, (signal, r_line) in enumerate(zip(signals, r_lines), start=1):
 print(f"Python/R find_peaks 对照通过：{len(signals)} 条随机合成信号。")
 
 
-# 再生成 50 条接近实际 mass track 量级的信号，验证完整统计检测主流程。
+# Then generate 50 signals close to the actual mass track magnitude to verify the complete statistical detection main process.
 full_signals: list[np.ndarray] = []
 for _ in range(50):
     number_of_scans = int(random.integers(101, 201))
     scans = np.arange(number_of_scans, dtype=float)
     signal = np.full(number_of_scans, 1000.0)
 
-    # 峰中心放在远离边界的位置，重点检查检测、拟合、面积和 SNR 的一致性。
+    # Peak centers were placed away from the boundaries, focusing on checking the consistency of detection, fit, area, and SNR.
     center = random.uniform(30, number_of_scans - 31)
     sigma = random.uniform(3, 8)
     height = random.uniform(150000, 500000)
@@ -178,7 +178,7 @@ for (case_number in seq_along(lines)) {{
 }}
 """
 
-# 完整流程也只启动一次 R，避免把进程启动时间误认为算法耗时。
+# The complete process only starts R once to avoid mistaking the process startup time for the algorithm's time consumption.
 completed = subprocess.run(
     ["Rscript", "-e", full_r_code],
     input=full_input,
@@ -203,7 +203,7 @@ parameters = {
     "min_prominence_threshold": 33000,
 }
 
-# 比较完整 peak JSON 的十个数值字段。
+# Compare the ten numeric fields of the complete peak JSON.
 for case_number, (signal, r_line) in enumerate(
     zip(full_signals, full_r_lines), start=1
 ):
@@ -239,7 +239,7 @@ for case_number, (signal, r_line) in enumerate(
             python_peak["snr"],
         ])
 
-        # 离散结果要求完全一致，拟合分数允许跨优化器的微小数值误差。
+        # Discrete results are required to be completely consistent, and small numerical errors across optimizers are allowed for fit scores.
         discrete_positions = [0, 1, 2, 3, 4, 7, 8, 9]
         if not np.array_equal(
             python_values[discrete_positions], r_peak[discrete_positions]

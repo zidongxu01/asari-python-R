@@ -1,9 +1,9 @@
-# 对应 Python asari/tools/qc.py：特征表QC图和单mzML文件HTML报告。
+# Corresponds to Python asari/tools/qc.py: feature table QC diagram and single mzML file HTML report.
 
-# 本模块的NULL后备值，保证单独source时也能运行。
+# The NULL backup value of this module ensures that it can also run with a separate source.
 .qc_or <- function(value, fallback) if (is.null(value)) fallback else value
 
-# 对应 asari_qc_plot：log2面积/SNR、峰形、cSelectivity和点大小组合图。
+# Corresponds to asari_qc_plot: log2 area/SNR, peak shape, cSelectivity and point size combination plot.
 asari_qc_plot <- function(data, outfile = "qc_plot.pdf", height = 12,
                           aspect = 0.7, cmap = NULL) {
   invisible(cmap)
@@ -22,7 +22,7 @@ asari_qc_plot <- function(data, outfile = "qc_plot.pdf", height = 12,
   invisible(NULL)
 }
 
-# 对应generate_qc_report内部calcTIC。
+# Corresponds to generate_qc_report internal calcTIC.
 .qc_calcTIC <- function(spectra, mslevel = 1L) {
   rt <- numeric(); tic <- numeric(); scan_no <- 0L
   for (spectrum in spectra) if (spectrum$ms_level == mslevel) {
@@ -34,7 +34,7 @@ asari_qc_plot <- function(data, outfile = "qc_plot.pdf", height = 12,
   list(rt, tic)
 }
 
-# 对应generate_qc_report内部extract_trio。
+# Corresponds to generate_qc_report internal extract_trio.
 .qc_extract_trio <- function(spectra, mslevel = 1L, min_intensity = 1000) {
   result <- list()
   for (spectrum in spectra) if (spectrum$ms_level == mslevel) {
@@ -46,7 +46,7 @@ asari_qc_plot <- function(data, outfile = "qc_plot.pdf", height = 12,
   result
 }
 
-# 对应generate_qc_report内部find_targets。
+# Corresponds to find_targets inside generate_qc_report.
 .qc_find_targets <- function(trio_list, spikeins, mz_error = 0.003, min_intensity = 10000) {
   result <- list()
   for (target in spikeins) {
@@ -57,14 +57,14 @@ asari_qc_plot <- function(data, outfile = "qc_plot.pdf", height = 12,
   result
 }
 
-# 简单HTML转义。
+# Simple HTML escaping.
 .qc_html <- function(value) {
   value <- gsub("&", "&amp;", as.character(value), fixed = TRUE)
   value <- gsub("<", "&lt;", value, fixed = TRUE)
   gsub(">", "&gt;", value, fixed = TRUE)
 }
 
-# 对应 generate_qc_report：生成扫描、模式、TIC和spike-in摘要HTML。
+# Corresponds to generate_qc_report: Generate scan, schema, TIC and spike-in summary HTML.
 generate_qc_report <- function(job) {
   mzml_file <- job[[1L]]; output_file <- job[[2L]]; spikeins <- job[[3L]]
   if (is.null(spikeins)) {
@@ -103,7 +103,7 @@ generate_qc_report <- function(job) {
     intensities <- if (length(found)) vapply(found, `[[`, 0, 1L) else numeric()
     best <- if (length(found)) found[[which.max(intensities)]] else c(NA, NA, NA)
     ppm <- if (length(delta)) sum(delta) / length(delta) / target[[2L]] * 1e6 else "NA"
-    # Python原版把best tuple第二项m/z写到max_intensity_time，保留该行为。
+    # The original version of Python writes the second item m/z of best tuple to max_intensity_time, retaining this behavior.
     rows <- c(rows, paste0(
       "<tr><td>", .qc_html(name), "</td><td>", ifelse(length(found), best[[1L]], "NA"),
       "</td><td>", ifelse(length(found), best[[2L]], "NA"), "</td><td>", ppm,
@@ -124,7 +124,7 @@ generate_qc_report <- function(job) {
   output_file
 }
 
-# 对应 get_dataframe_from_file：index_col和header保留Python0基参数语义。
+# Corresponds to get_dataframe_from_file: index_col and header retain Python0 base parameter semantics.
 get_dataframe_from_file <- function(
     infile, header = 0L, index_col = 0L, sep = "\t", max_col = 21L) {
   data <- utils::read.table(

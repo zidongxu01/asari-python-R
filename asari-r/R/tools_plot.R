@@ -1,6 +1,6 @@
-# 对应 Python asari/tools/plot.py：质谱区域、质量轨迹、镜像谱和QC绘图。
+# Corresponds to Python asari/tools/plot.py: mass-spectral regions, mass track, mirror spectrum and QC plot.
 
-# 对应 get_plot_region_from_file：扫描号和m/z均使用严格开区间。
+# Corresponds to get_plot_region_from_file: both scan number and m/z use strict open intervals.
 get_plot_region_from_file <- function(
     infile, min_scan_number, max_scan_number, min_mz, max_mz, ms_level = 1L) {
   spectra <- .ms2_read_spectra(infile)
@@ -17,7 +17,7 @@ get_plot_region_from_file <- function(
   result
 }
 
-# 将datapoint list转成三列matrix并计算相对log2强度。
+# Convert the datapoint list into a three-column matrix and calculate the relative log2 intensity.
 .plot_region_data <- function(datapoints) {
   data <- do.call(rbind, lapply(datapoints, as.numeric))
   intensity <- log2(data[, 3L] + 1)
@@ -25,7 +25,7 @@ get_plot_region_from_file <- function(
   list(data = data, normalized = normalized)
 }
 
-# 对应 plot_scatter_map_region。
+# Corresponds to plot_scatter_map_region.
 plot_scatter_map_region <- function(datapoints, figsize = c(8, 10), cmap = NULL,
                                     colorbar_orientation = "horizontal") {
   invisible(figsize); invisible(cmap); invisible(colorbar_orientation)
@@ -38,7 +38,7 @@ plot_scatter_map_region <- function(datapoints, figsize = c(8, 10), cmap = NULL,
   invisible(NULL)
 }
 
-# 对应 double_scatter_map_region。
+# Corresponds to double_scatter_map_region.
 double_scatter_map_region <- function(datapoints, figsize = c(8, 10), cmap = NULL,
                                       colorbar_orientation = "horizontal") {
   invisible(figsize); invisible(cmap); invisible(colorbar_orientation)
@@ -50,7 +50,7 @@ double_scatter_map_region <- function(datapoints, figsize = c(8, 10), cmap = NUL
   invisible(NULL)
 }
 
-# 对应 with_line_scatter_map_region。
+# Corresponds to with_line_scatter_map_region.
 with_line_scatter_map_region <- function(datapoints, figsize = c(8, 10), cmap = NULL) {
   invisible(figsize); invisible(cmap)
   prepared <- .plot_region_data(datapoints)
@@ -60,7 +60,7 @@ with_line_scatter_map_region <- function(datapoints, figsize = c(8, 10), cmap = 
   invisible(NULL)
 }
 
-# 对应 plot_masstrack：start/end沿用Python半开0基切片。
+# Corresponds to plot_masstrack: start/end follows Python half-open 0-based slicing.
 plot_masstrack <- function(track, color = "magenta", start = 100L, end = 400L,
                            yticks = c(0, 5e7, 1e8)) {
   x <- if (end > start) start:(end - 1L) else integer()
@@ -70,12 +70,12 @@ plot_masstrack <- function(track, color = "magenta", start = 100L, end = 400L,
   invisible(NULL)
 }
 
-# 把matplotlib颜色名映射到R可识别颜色。
+# Map matplotlib color names to R-recognizable colors.
 .plot_color <- function(value) {
   switch(value, "tab:red" = "red3", "R0" = "red", value)
 }
 
-# 对应 mirror_plot：归一化、上下翻转并连接容差内峰。
+# Corresponds to mirror_plot: normalizes, flips up and down, and joins within-tolerance peaks.
 mirror_plot <- function(
     peaks, peaks2, figsize = c(8, 4), label1 = "GCMS features",
     label2 = "Spectrum in lib", normalize = TRUE, match_tol = NULL,
@@ -105,7 +105,7 @@ mirror_plot <- function(
   invisible(NULL)
 }
 
-# 对应 plot_mSelectivity。
+# Corresponds to plot_mSelectivity.
 plot_mSelectivity <- function(mzList, selectivities, figsize = c(10, 3), save_pdf = TRUE,
                               outfile = "Figure_mSelectivity") {
   if (isTRUE(save_pdf)) grDevices::pdf(paste0(outfile, ".pdf"), width = figsize[[1L]], height = figsize[[2L]])
@@ -115,7 +115,7 @@ plot_mSelectivity <- function(mzList, selectivities, figsize = c(10, 3), save_pd
   invisible(NULL)
 }
 
-# 对应 plot_cSelectivity。
+# Corresponds to plot_cSelectivity.
 plot_cSelectivity <- function(mass_track, list_ranges = list(c(0, 800), c(100, 150)),
                               save_pdf = TRUE, outfile = "Figure_cSelectivity") {
   if (isTRUE(save_pdf)) grDevices::pdf(paste0(outfile, ".pdf"), width = 10, height = 4)
@@ -130,7 +130,7 @@ plot_cSelectivity <- function(mass_track, list_ranges = list(c(0, 800), c(100, 1
   invisible(NULL)
 }
 
-# 对应 pca_ftable：对样本转置矩阵标准化后计算两主成分。
+# Corresponds to pca_ftable: Calculate the two principal components after normalizing the sample transpose matrix.
 pca_ftable <- function(tsv_path) {
   table <- utils::read.delim(tsv_path, check.names = FALSE)
   samples <- t(as.matrix(table[, 12:ncol(table), drop = FALSE]))
@@ -141,7 +141,7 @@ pca_ftable <- function(tsv_path) {
   invisible(scores)
 }
 
-# 对应 plot_correlations：比较样本聚合强度与综合peak_area。
+# Corresponds to plot_correlations: Compare the sample aggregation intensity with the comprehensive peak_area.
 plot_correlations <- function(feature_table_path) {
   table <- utils::read.delim(feature_table_path, check.names = FALSE)
   samples <- log2(as.matrix(table[, 12:ncol(table), drop = FALSE]) + 1)
@@ -161,10 +161,10 @@ plot_correlations <- function(feature_table_path) {
   invisible(NULL)
 }
 
-# 读取对象字段，兼容environment/list。
+# Read object fields, compatible with environment/list.
 .plot_field <- function(object, name) if (is.environment(object)) object[[name]] else object[[name]]
 
-# 对应 plot_peaks_masstrace：绘制原始轨迹和拟合峰模型。
+# Corresponds to plot_peaks_mastrace: plots the raw mass track and fitted peak model.
 plot_peaks_masstrace <- function(sample, mzstr, outfile = "masstrace_plot.pdf") {
   grDevices::pdf(outfile); on.exit(grDevices::dev.off(), add = TRUE)
   traces <- .plot_field(sample, "dict_masstraces")[[mzstr]]
@@ -192,10 +192,10 @@ plot_peaks_masstrace <- function(sample, mzstr, outfile = "masstrace_plot.pdf") 
   invisible(NULL)
 }
 
-# 对应当前Python空占位plot_peaks。
+# Corresponds to the current Python empty placeholder plot_peaks.
 plot_peaks <- function() invisible(NULL)
 
-# 对应 plot_sample_rt_calibration。
+# Corresponds to plot_sample_rt_calibration.
 plot_sample_rt_calibration <- function(sample, outfile = "rt_calibration.pdf") {
   path <- paste0(.plot_field(sample, "name"), outfile)
   grDevices::pdf(path); on.exit(grDevices::dev.off(), add = TRUE)

@@ -1,13 +1,13 @@
-# 对应 Python asari/annotate.py：LC/GC项目注释入口与结果导出。
+# Corresponds to Python asari/annotate.py: LC/GC project annotation entry and result export.
 
-# 统一调用environment或list适配器的方法。
+# Call the environment or list adapter method uniformly.
 .annotation_call <- function(object, method, ...) {
   callback <- if (is.environment(object)) object[[method]] else object[[method]]
   if (!is.function(callback)) stop("Annotation adapter lacks method: ", method)
   callback(...)
 }
 
-# 使用jsonlite输出，递归转换matrix以对应NpEncoder。
+# Use jsonlite output and recursively convert the matrix to correspond to NpEncoder.
 .annotation_json_ready <- function(value) {
   if (is.matrix(value)) return(lapply(seq_len(nrow(value)), function(ii) as.list(value[ii, ])))
   if (is.environment(value)) return(.annotation_json_ready(as.list(value)))
@@ -23,7 +23,7 @@
   invisible(NULL)
 }
 
-# 对应 annotate_project：建立时间戳目录并分派LC或GC工作流。
+# Corresponds to annotate_project: Create a timestamp directory and dispatch LC or GC workflow.
 annotate_project <- function(infile, parameters) {
   now <- Sys.time()
   stamp <- paste0(vapply(
@@ -60,13 +60,13 @@ annotate_project <- function(infile, parameters) {
   invisible(NULL)
 }
 
-# 生成可用于文件名的安全文本，对应pathvalidate.sanitize_filename。
+# Generate safe text that can be used for file names, corresponding to pathvalidate.sanitize_filename.
 .annotation_safe_filename <- function(value) {
   value <- gsub("[<>:\"/\\\\|?*]", "_", value)
   sub("[. ]+$", "", value)
 }
 
-# 对应 annotate_gcms_full：完整GC-HRMS目标注释和可选de novo工作流。
+# Corresponds to annotate_gcms_full: full GC-HRMS target annotation and optional de novo workflow.
 annotate_gcms_full <- function(
     infile, outdir, KovatsIndex, database_file,
     project_name_handle = "result", low_peak_filter_factor = 100,
@@ -166,10 +166,10 @@ annotate_gcms_full <- function(
   invisible(NULL)
 }
 
-# 创建Python LCMS_Annotation对应的可变环境对象。
+# Create a variable environment object corresponding to Python LCMS_Annotation.
 LCMS_Annotation <- function(parameters) LCMS_Annotation__init__(parameters)
 
-# 对应 LCMS_Annotation.__init__。
+# Corresponds to LCMS_Annotation.__init__.
 LCMS_Annotation__init__ <- function(parameters) {
   self <- new.env(parent = emptyenv())
   class(self) <- c("LCMS_Annotation", "environment")
@@ -191,7 +191,7 @@ LCMS_Annotation__init__ <- function(parameters) {
   self
 }
 
-# 对应LCMS_Annotation.annotate_user_featuretable三阶段JMS注释流程。
+# Corresponds to the LCMS_Annotation.annotate_user_featuretable three-stage JMS annotation process.
 LCMS_Annotation_annotate_user_featuretable <- function(self, infile) {
   parsed <- read_features_from_asari_table(paste(readLines(infile, warn = FALSE), collapse = "\n"))
   features <- lapply(parsed[[2L]], function(feature) {
@@ -224,7 +224,7 @@ LCMS_Annotation_annotate_user_featuretable <- function(self, infile) {
   invisible(NULL)
 }
 
-# 对应 LCMS_Annotation.load_annotation_db：JMS数据库由可注入工厂提供。
+# Corresponds to LCMS_Annotation.load_annotation_db: JMS database provided by an injectable factory.
 LCMS_Annotation_load_annotation_db <- function(self, src = "hmdb4") {
   factory <- getOption("asariR.knownCompoundDatabase_factory")
   if (!is.function(factory)) {
@@ -237,7 +237,7 @@ LCMS_Annotation_load_annotation_db <- function(self, src = "hmdb4") {
   invisible(NULL)
 }
 
-# 对应类中第一个只有docstring的db_mass_calibrate定义；该定义随后被Python覆盖。
+# The first db_mass_calibrate definition in the corresponding class only has a docstring; this definition is subsequently overridden by Python.
 LCMS_Annotation_db_mass_calibrate_documented <- function(
     self, max_features = 1000, required_calibrate_threshold = 0.000002) {
   invisible(self)
@@ -246,7 +246,7 @@ LCMS_Annotation_db_mass_calibrate_documented <- function(
   invisible(NULL)
 }
 
-# 对应最终生效的LCMS_Annotation.db_mass_calibrate。
+# Corresponds to the final effective LCMS_Annotation.db_mass_calibrate.
 LCMS_Annotation_db_mass_calibrate <- function(
     self, max_features = 1000, required_calibrate_threshold = 0.000002) {
   landmarks <- utils::head(vapply(self$list_features, `[[`, 0, "mz"), max_features)
@@ -273,7 +273,7 @@ LCMS_Annotation_db_mass_calibrate <- function(
   invisible(NULL)
 }
 
-# 对应 append_orphans_to_epmCpds。
+# Corresponds to append_orphans_to_epmCpds.
 LCMS_Annotation_append_orphans_to_epmCpds <- function(self, dict_empCpds) {
   assigned <- unlist(lapply(dict_empCpds, function(compound) {
     vapply(compound$MS1_pseudo_Spectra, function(peak) as.character(peak$id_number), "")
@@ -290,7 +290,7 @@ LCMS_Annotation_append_orphans_to_epmCpds <- function(self, dict_empCpds) {
   dict_empCpds
 }
 
-# 对应 export_peak_annotation：输出逐峰JMS注释表。
+# Corresponds to export_peak_annotation: output the peak-by-peak JMS annotation table.
 LCMS_Annotation_export_peak_annotation <- function(self, dict_empCpds, KCD, export_file_name_prefix) {
   header <- c(
     "[peak]id_number", "mz", "rtime", "apex(scan number)",
@@ -327,7 +327,7 @@ LCMS_Annotation_export_peak_annotation <- function(self, dict_empCpds, KCD, expo
   invisible(NULL)
 }
 
-# 对应 select_unique_compound_features：每个empCpd选综合面积最高峰。
+# Corresponds to select_unique_compound_features: select the highest peak of comprehensive area for each empCpd.
 LCMS_Annotation_select_unique_compound_features <- function(self, dict_empCpds) {
   selected <- list()
   for (interim_id in names(dict_empCpds)) {
@@ -351,7 +351,7 @@ LCMS_Annotation_select_unique_compound_features <- function(self, dict_empCpds) 
   invisible(NULL)
 }
 
-# 对应模块级 annotate_user_featuretable：独立khipu预注释入口。
+# Corresponding module level annotate_user_featuretable: independent khipu pre-annotation entry.
 annotate_user_featuretable <- function(infile, parameters) {
   mode <- parameters$mode
   patterns <- if (identical(mode, "pos")) adduct_search_patterns_pos else adduct_search_patterns_neg
@@ -379,7 +379,7 @@ annotate_user_featuretable <- function(infile, parameters) {
   invisible(NULL)
 }
 
-# 对应拼写保持原样的annoate_by_standards。
+# Corresponds to annoate_by_standards with the spelling unchanged.
 annoate_by_standards <- function(list_features, cpdLib) {
   matched <- list_match_lcms_features(list_features, cpdLib, mz_ppm = 5, rt_tolerance = 30)
   dict_f <- stats::setNames(list_features, vapply(list_features, `[[`, "", "id"))
@@ -389,7 +389,7 @@ annoate_by_standards <- function(list_features, cpdLib) {
   matched
 }
 
-# 对应 get_concise_annotation：每类库仅保留第一个匹配。
+# Corresponds to get_concise_annotation: each class library only retains the first match.
 get_concise_annotation <- function(feature_id, matched_list, feature_dict, lib_dict) {
   feature <- feature_dict[[feature_id]]
   result <- list(id = feature_id, mz = feature$mz, rtime = feature$rtime)
@@ -426,7 +426,7 @@ get_concise_annotation <- function(feature_id, matched_list, feature_dict, lib_d
   result
 }
 
-# 对应 export_combined_anno_table。
+# Corresponds to export_combined_anno_table.
 export_combined_anno_table <- function(matched, feature_dict, lib_dict, outfile) {
   header <- c(
     "id", "mz", "rtime", "lib_id", "lib_name", "lib_mz", "lib_rtime",
@@ -442,7 +442,7 @@ export_combined_anno_table <- function(matched, feature_dict, lib_dict, outfile)
   invisible(NULL)
 }
 
-# 对应 export_combined_anno_json。
+# Corresponds to export_combined_anno_json.
 export_combined_anno_json <- function(matched, feature_dict, lib_dict, outfile) {
   output <- lapply(names(matched), function(feature_id) {
     stats::setNames(list(list(

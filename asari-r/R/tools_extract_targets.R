@@ -1,7 +1,7 @@
-# 对应 Python asari/tools/extract_targets.py：按目标m/z导出特征。
+# Corresponds to Python asari/tools/extract_targets.py: Export features by target m/z.
 
-# 对应 export_targets。原Python函数引用未定义self和filtered_FeatureTable；
-# R版用registry显式传入data.frame，并保留parameters、sample_id、outfile接口。
+# Corresponds to export_targets. The original Python function reference undefined self and filtered_FeatureTable;
+# The R version uses registry to explicitly pass in data.frame, and retains the parameters, sample_id, and outfile interfaces.
 export_targets <- function(parameters, registry, sample_id, outfile) {
   invisible(sample_id)
   targets <- parameters$target

@@ -1,6 +1,6 @@
-# 面向普通用户的附加入口：把已经完成的纯R模块接到稳定、可校验的公开函数。
+# Additional public entry points expose the completed pure-R modules through stable, verifiable functions.
 
-# 检查一个参数是否为单个正数，并返回数值形式。
+# Checks whether an argument is a single positive number and returns the numeric form.
 .asari_public_positive_number <- function(value, name) {
   if (!is.numeric(value) || length(value) != 1L || is.na(value) || value <= 0) {
     stop(name, " must be one positive number.", call. = FALSE)
@@ -8,7 +8,7 @@
   as.numeric(value)
 }
 
-# 从显式路径或data.frame读取特征表，不寻找任何默认文件。
+# Read feature table from an explicit path or data.frame, without looking for any default file.
 .asari_public_feature_table <- function(value, name = "feature_table") {
   if (is.data.frame(value)) return(value)
   if (!is.character(value) || length(value) != 1L || is.na(value) ||
@@ -22,7 +22,7 @@
   utils::read.delim(path, check.names = FALSE, stringsAsFactors = FALSE)
 }
 
-# 检查特征表必须具备的列，错误中直接列出缺少的名称。
+# Check the columns that feature table must have, and the missing names are listed directly in the error.
 .asari_public_require_columns <- function(table, columns, name = "feature_table") {
   missing <- setdiff(columns, names(table))
   if (length(missing) > 0L) {
@@ -34,7 +34,7 @@
   invisible(TRUE)
 }
 
-# 准备一个明确的输出文件，并创建它的父目录。
+# Prepare an explicit output file and create its parent directory.
 .asari_public_output_file <- function(output, name = "output") {
   if (!is.character(output) || length(output) != 1L || is.na(output) ||
       !nzchar(trimws(output))) {
@@ -49,7 +49,7 @@
   normalizePath(path, mustWork = FALSE)
 }
 
-# 检查并返回一个明确的mzML文件。
+# Check and return an explicit mzML file.
 .asari_public_one_mzml <- function(input) {
   files <- .asari_collect_input_files(input, recursive = FALSE)
   if (length(files) != 1L) {
@@ -58,13 +58,13 @@
   files[[1L]]
 }
 
-#' 使用DIMS流程处理直接进样质谱数据
+#' Use the DIMS process to process direct injection mass spectrum data
 #'
-#' 该函数复用[asari_process()]的输入检查、质量轨迹提取和结果导出，
-#' 但固定使用`DIMS`流程并关闭保留时间对齐。
+#' This function reuses the input check, mass track extraction and result export of [asari_process()],
+#' But fixed use `DIMS` process and turn off retention time alignment.
 #'
 #' @inheritParams asari_process
-#' @return 一个`asari_result`对象。DIMS的主要结果位于`full_feature_table`。
+#' @return An `asari_result` object. The main DIMS result is stored in `full_feature_table`.
 #' @export
 asari_process_dims <- function(
     input,
@@ -76,7 +76,7 @@ asari_process_dims <- function(
     database_mode = NULL,
     recursive = FALSE,
     parameters = list()) {
-  # DIMS不使用色谱峰边界或跨样本保留时间对齐。
+  # DIMS does not use chromatogram peak boundaries or cross-sample retention time alignment.
   parameters$workflow <- "DIMS"
   parameters$rt_align_on <- FALSE
   asari_process(
@@ -93,18 +93,18 @@ asari_process_dims <- function(
   )
 }
 
-#' 分析一个mzML文件的扫描和质量轨迹
+#' Analyze the scans and mass tracks in an mzML file
 #'
-#' 该函数只执行本地mzML读取、质量轨迹提取和同位素锚点统计，
-#' 不连接已知化合物数据库，也不执行外部注释。
+#' This function only performs local mzML reading, mass track extraction and isotope anchor point statistics.
+#' Known compound databases are not connected and external annotation is not performed.
 #'
-#' @param input 一个明确的`.mzML`文件。
-#' @param ppm m/z容差，单位为ppm。
-#' @param min_intensity 最低数据点强度。
-#' @param min_timepoints 一条质量轨迹至少包含的数据点数。
-#' @param min_peak_height 最低峰高。
-#' @param parameters 其他高级参数的具名覆盖列表。
-#' @return 包含扫描摘要、锚点统计、质量轨迹表和原始轨迹的具名列表。
+#' @param input An explicit `.mzML` file.
+#' @param ppm m/z tolerance in ppm.
+#' @param min_intensity Minimum data point intensity.
+#' @param min_timepoints The minimum number of data points contained in a mass track.
+#' @param min_peak_height Minimum peak height.
+#' @param parameters A named override list of other advanced parameters.
+#' @return Contains scan summary, anchor statistics, mass track table, and named list of raw trajectories.
 #' @export
 asari_analyze <- function(
     input,
@@ -113,7 +113,7 @@ asari_analyze <- function(
     min_timepoints = 6L,
     min_peak_height = 100000,
     parameters = list()) {
-  # 所有分析都从用户给出的唯一文件开始，不读取工作目录中的其他mzML。
+  # All analyzes start from the unique file given by the user and do not read other mzML in the working directory.
   infile <- .asari_public_one_mzml(input)
   if (!requireNamespace("mzR", quietly = TRUE)) {
     stop("Analyzing mzML requires the Bioconductor package mzR.", call. = FALSE)
@@ -130,7 +130,7 @@ asari_analyze <- function(
     min_peak_height, "min_peak_height"
   )
 
-  # 只读取一次扫描头，并把它注入现有分析模块以避免重复打开大文件。
+  # Read the scan header only once and inject it into the existing analysis module to avoid opening large files repeatedly.
   header <- .analyze_scan_header(infile, effective)
   effective$scan_header <- header
   sample <- get_file_masstrack_stats(infile, effective, return_sample = TRUE)
@@ -158,7 +158,7 @@ asari_analyze <- function(
     }))
   }
 
-  # 返回既适合快速查看、又足以继续下游计算的结构化结果。
+  # Returns structured results that are both suitable for quick viewing and sufficient to continue downstream calculations.
   levels <- as.integer(header$msLevel)
   result <- list(
     input_file = infile,
@@ -182,11 +182,11 @@ asari_analyze <- function(
   result
 }
 
-#' 导出一个mzML文件的质量轨迹摘要
+#' Export mass track summary of an mzML file
 #'
 #' @inheritParams asari_analyze
-#' @param output 可选的明确TSV输出路径；为`NULL`时只返回data.frame。
-#' @return 质量轨迹摘要data.frame。
+#' @param output Optional explicit TSV output path; only data.frame is returned when it is `NULL`.
+#' @return mass track summary data.frame.
 #' @export
 asari_extract_mass_tracks <- function(
     input,
@@ -196,7 +196,7 @@ asari_extract_mass_tracks <- function(
     min_timepoints = 6L,
     min_peak_height = 100000,
     parameters = list()) {
-  # 复用单文件分析，保证轨迹提取参数和统计口径只有一套实现。
+  # Reuse single-file analysis to ensure that only one set of trajectory extraction parameters and statistical criteria is implemented.
   analysis <- asari_analyze(
     input = input,
     ppm = ppm,
@@ -218,12 +218,12 @@ asari_extract_mass_tracks <- function(
   table
 }
 
-#' 读取asariR已经生成的项目结果
+#' Read the project results that asariR has generated
 #'
-#' @param project 一个项目目录，或[asari_process()]返回的`asari_result`。
-#' @param table 要读取`"preferred"`、`"full"`或`"both"`表。
-#' @param max_samples 可选的最大样本列数；`NULL`表示读取全部样本列。
-#' @return 包含项目描述和所选特征表的`asari_project_results`对象。
+#' @param project A project directory, or `asari_result` returned by [asari_process()].
+#' @param table To read the `"preferred"`, `"full"` or `"both"` table.
+#' @param max_samples Optional maximum number of sample columns; `NULL` means reading all sample columns.
+#' @return An `asari_project_results` object containing the project description and selected feature table.
 #' @export
 asari_read_results <- function(
     project,
@@ -255,7 +255,7 @@ asari_read_results <- function(
     max_samples <- as.integer(max_samples)
   }
 
-  # asari表的前11列是固定特征元数据，后面的列才是样本丰度。
+  # The first 11 columns of the asari table are fixed feature metadata, and the following columns are sample abundances.
   read_one <- function(path) {
     if (!file.exists(path)) stop("Project is missing feature table: ", path, call. = FALSE)
     value <- utils::read.delim(path, check.names = FALSE, stringsAsFactors = FALSE)
@@ -267,7 +267,7 @@ asari_read_results <- function(
   project_description <- jsonlite::fromJSON(
     description_file, simplifyVector = FALSE
   )
-  # 使用项目实际记录的表名，兼容output_feature_table高级覆盖值。
+  # Use the table name actually recorded in the project, compatible with the output_feature_table advanced override value.
   feature_table_name <- if (!is.null(project_description$output_feature_table)) {
     as.character(project_description$output_feature_table)
   } else {
@@ -293,16 +293,16 @@ asari_read_results <- function(
   result
 }
 
-#' 比较两张LC-MS特征表
+#' Compare two LC-MS feature tables
 #'
-#' 两个方向都选择ppm和RT窗口内m/z偏差最小的候选，只保留相互最佳匹配。
+#' The candidate with the smallest m/z deviation within the ppm and RT windows is selected in both directions, and only the best matches to each other are retained.
 #'
-#' @param left,right TSV路径或data.frame。
-#' @param ppm 正数m/z容差。
-#' @param rt_tolerance 正数保留时间容差，单位为秒，使用严格小于关系。
-#' @param left_rt_unit,right_rt_unit 各表保留时间单位。
-#' @param verbose 是否打印底层双向匹配统计。
-#' @return 每行一个相互最佳匹配的data.frame。
+#' @param left,right TSV path or data.frame.
+#' @param ppm Positive m/z tolerance.
+#' @param rt_tolerance Positive retention time tolerance, unit is seconds, using strict less than relationship.
+#' @param left_rt_unit,right_rt_unit Each table has retention time unit.
+#' @param verbose Whether to print the underlying two-way matching statistics.
+#' @return One data.frame per row that best matches each other.
 #' @export
 asari_compare_features <- function(
     left,
@@ -321,7 +321,7 @@ asari_compare_features <- function(
   .asari_public_require_columns(left_table, c("mz", "rtime"), "left")
   .asari_public_require_columns(right_table, c("mz", "rtime"), "right")
 
-  # 没有id_number时使用稳定的行号ID，避免要求用户先修改自己的表。
+  # Use a stable row number ID when there is no id_number to avoid requiring users to modify their own tables first.
   if (!("id_number" %in% names(left_table))) {
     left_table$id_number <- paste0("row", seq_len(nrow(left_table)))
   }
@@ -348,7 +348,7 @@ asari_compare_features <- function(
     rtime = right_seconds[[ii]]
   ))
 
-  # 直接调用已经逐def翻译并测试的双向最佳匹配算法。
+  # Directly call the two-way best matching algorithm that has been translated and tested def by def.
   matched <- if (isTRUE(verbose)) {
     bidirectional_best_match(left_features, right_features, ppm, rt_tolerance)
   } else {
@@ -391,13 +391,13 @@ asari_compare_features <- function(
   result
 }
 
-#' 按目标m/z从特征表中提取候选峰
+#' Extract candidate peaks from feature table by target m/z
 #'
-#' @param feature_table asari特征表路径或data.frame。
-#' @param targets 一个或多个目标m/z。
-#' @param ppm 正数m/z容差。
-#' @param output 可选的明确TSV输出路径。
-#' @return 命中的特征行；首列为查询质量，并附带ppm误差。
+#' @param feature_table asari feature table path or data.frame.
+#' @param targets One or more target m/z.
+#' @param ppm Positive m/z tolerance.
+#' @param output Optional explicit TSV output path.
+#' @return Hit feature rows; first column is query mass, with ppm error.
 #' @export
 asari_extract_targets <- function(feature_table, targets, ppm = 5, output = NULL) {
   table <- .asari_public_feature_table(feature_table)
@@ -440,13 +440,13 @@ asari_extract_targets <- function(feature_table, targets, ppm = 5, output = NULL
   result
 }
 
-#' 为特征表生成QC图
+#' Generate a QC plot for a feature table
 #'
-#' @param feature_table asari完整特征表路径或data.frame。
-#' @param output 明确的PDF输出路径。
-#' @param height PDF高度。
-#' @param aspect PDF宽高比。
-#' @return 生成的PDF绝对路径。
+#' @param feature_table asari full feature table path or data.frame.
+#' @param output Explicit PDF output path.
+#' @param height PDF height.
+#' @param aspect PDF aspect ratio.
+#' @return Generated PDF absolute path.
 #' @export
 asari_feature_qc <- function(feature_table, output, height = 12, aspect = 0.7) {
   table <- .asari_public_feature_table(feature_table)
@@ -459,12 +459,12 @@ asari_feature_qc <- function(feature_table, output, height = 12, aspect = 0.7) {
   normalizePath(outfile, mustWork = TRUE)
 }
 
-#' 为一个mzML文件生成HTML质量检查报告
+#' Generate HTML QA report for an mzML file
 #'
-#' @param input 一个明确的`.mzML`文件。
-#' @param output 明确的HTML输出路径。
-#' @param spikeins `NULL`、目标list或目标JSON文件。
-#' @return 生成的HTML绝对路径。
+#' @param input An explicit `.mzML` file.
+#' @param output Explicit HTML output path.
+#' @param spikeins `NULL`, target list or target JSON file.
+#' @return Generated HTML absolute path.
 #' @export
 asari_qc_report <- function(input, output, spikeins = NULL) {
   infile <- .asari_public_one_mzml(input)
@@ -473,15 +473,15 @@ asari_qc_report <- function(input, output, spikeins = NULL) {
   normalizePath(outfile, mustWork = TRUE)
 }
 
-#' 为一个mzML文件生成MS1/MS2扫描摘要PDF
+#' Generate MS1/MS2 scan summary PDF for an mzML file
 #'
-#' @param input 一个明确的`.mzML`文件。
-#' @param output 明确的PDF输出路径。
-#' @param nspec_plot 要展示的示例扫描数。
-#' @param offset_n 从第几个扫描附近开始展示。
-#' @param width,height PDF尺寸。
-#' @param title 图标题。
-#' @return 生成的PDF绝对路径。
+#' @param input An explicit `.mzML` file.
+#' @param output Explicit PDF output path.
+#' @param nspec_plot Number of sample scans to display.
+#' @param offset_n Display starts from the vicinity of the scan number.
+#' @param width,height PDF size.
+#' @param title Figure title.
+#' @return Generated PDF absolute path.
 #' @export
 asari_scan_summary <- function(
     input,
@@ -500,12 +500,12 @@ asari_scan_summary <- function(
   normalizePath(outfile, mustWork = TRUE)
 }
 
-#' 查看当前工作流的可用状态
+#' View the available status of the current workflow
 #'
-#' @return 一张说明本地可直接使用和外部依赖状态的data.frame。
+#' @return A data.frame describing local direct use and external dependency status.
 #' @export
 asari_available_workflows <- function() {
-  # 状态描述安装后普通用户现在能直接调用的公开入口。
+  # These status descriptions document the public entry points available after installation.
   data.frame(
     workflow = c("LC", "DIMS", "GC", "LCMSMS", "LC_annotation", "dashboard", "RAW_conversion"),
     direct_use = rep(TRUE, 7L),
@@ -527,7 +527,7 @@ asari_available_workflows <- function() {
   )
 }
 
-# 打印单文件分析摘要，不自动展开可能很大的轨迹list。
+# Prints a single-file analysis summary and does not automatically expand a potentially large mass-track list.
 #' @export
 print.asari_analysis <- function(x, ...) {
   invisible(list(...))
@@ -540,7 +540,7 @@ print.asari_analysis <- function(x, ...) {
   invisible(x)
 }
 
-# 打印已经读取的项目摘要，表格本身仍保存在对象中。
+# Prints a summary of the items that have been read, the table itself is still saved in the object.
 #' @export
 print.asari_project_results <- function(x, ...) {
   invisible(list(...))

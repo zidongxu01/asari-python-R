@@ -1,23 +1,23 @@
-# 对应 Python asari/tools/extract_masstracks.py：旧版独立质量轨迹导出工具。
+# Corresponds to Python asari/tools/extract_masstracks.py: the old version of the independent mass track export tool.
 
-# 对应 read_project_dir：不排序，保留目录枚举顺序并按子串过滤。
+# Corresponds to read_project_dir: no sorting, retaining directory enumeration order and filtering by substring.
 read_project_dir_masstracks <- function(directory, file_pattern = ".mzML") {
   entries <- list.files(directory, full.names = FALSE, all.files = FALSE, no.. = TRUE)
   file.path(directory, entries[grepl(file_pattern, entries, fixed = TRUE)])
 }
 
-# 提供原函数名的显式别名；workflow.R加载后可能覆盖同名主流程函数。
+# Provide an explicit alias of the original function name; after workflow.R is loaded, it may overwrite the main process function with the same name.
 read_project_dir_extract_masstracks <- read_project_dir_masstracks
 
-# 从环境或list读取字段。
+# Read fields from the environment or list.
 .extract_masstracks_get <- function(object, name) {
   if (is.environment(object)) return(object[[name]])
   object[[name]]
 }
 
-# 对应 process_single_file：提取轨迹并导出每条轨迹的摘要统计。
+# Corresponds to process_single_file: extract mass tracks and export summary statistics for each track.
 process_single_file <- function(infile, outdir = "") {
-  # 原Python使用过时的SimpleSample(input_file=...)接口；R版允许注入同功能工厂。
+  # The original Python uses the outdated SimpleSample(input_file=...) interface; the R version allows the injection of factories with the same function.
   factory <- getOption("asariR.simple_sample_from_file")
   if (!is.function(factory)) {
     factory <- get0("SimpleSample_from_file", mode = "function", inherits = TRUE)

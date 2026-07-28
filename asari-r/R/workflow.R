@@ -1,7 +1,7 @@
-# 对应 Python asari/workflow.py：项目调度、样本登记和质量轨迹批量提取。
-# 本模块只负责流程编排；实际 mzML 读取与质量轨迹算法位于 chromatograms.R。
+# Corresponds to Python asari/workflow.py: project scheduling, sample registration and mass track batch extraction.
+# This module is only responsible for process orchestration; the actual mzML reading and mass track algorithm are located in chromatograms.R.
 
-# 读取 list 或 environment 参数，兼容 Python 可变 dict 与 R 具名 list。
+# Read list or environment parameters, compatible with Python mutable dict and R named list.
 .workflow_get <- function(object, name, default = NULL) {
   if (is.environment(object)) {
     if (exists(name, envir = object, inherits = FALSE)) {
@@ -13,7 +13,7 @@
   default
 }
 
-# 修改参数；environment 原地更新，list 返回更新后的副本供 R 调用者继续使用。
+# Modify the parameters; the environment is updated in place, and the list returns an updated copy for the R caller to continue using.
 .workflow_set <- function(object, name, value) {
   if (is.environment(object)) {
     assign(name, value, envir = object)
@@ -23,7 +23,7 @@
   object
 }
 
-# 按 sample ID 读取或写入 registry，样本 ID 始终保留 Python 0-based 值。
+# Read or write to the registry by sample ID, which always retains a Python 0-based value.
 .workflow_registry_get <- function(registry, sample_id) {
   key <- as.character(sample_id)
   if (!is.null(names(registry)) && key %in% names(registry)) {
@@ -42,7 +42,7 @@
   registry
 }
 
-# 获取与 Python time.localtime()[1:6] 一致的月、日、时、分、秒字符串。
+# Get the month, day, hour, minute, and second string consistent with Python time.localtime()[1:6].
 .workflow_time_parts <- function(now = Sys.time()) {
   local <- as.POSIXlt(now)
   as.character(c(
@@ -51,7 +51,7 @@
   ))
 }
 
-# 从 parameters 注入项或 chromatograms.R 查找质量轨迹提取器。
+# Find mass track extractor from parameters injection or chromatograms.R.
 .workflow_mass_track_extractor <- function(parameters) {
   callback <- .workflow_get(parameters, "extract_mass_tracks")
   if (is.function(callback)) return(callback)
@@ -59,7 +59,7 @@
   stop("extract_mass_tracks is unavailable; load chromatograms.R first.")
 }
 
-# 调用 mass2chem 等价的 m/z 差值锚点查找器。
+# Call mass2chem's equivalent m/z difference anchor point finder.
 .workflow_find_anchor_pairs <- function(list_mass_tracks, parameters) {
   callback <- .workflow_get(parameters, "find_mzdiff_pairs")
   if (is.function(callback)) {
@@ -77,7 +77,7 @@
   stop("m/z anchor-pair finder is unavailable; load constructors.R first.")
 }
 
-# 将单样本中间对象写成 Python pickle，保证 samples.R 和 Python 都能读取。
+# Write the single-sample intermediate object as Python pickle to ensure that both samples.R and Python can read it.
 .workflow_write_intermediate <- function(value, path) {
   if (!exists(".experiment_write_pickle", mode = "function")) {
     stop("Python pickle writer is unavailable; load experiment.R first.")
@@ -85,11 +85,11 @@
   .experiment_write_pickle(value, path)
 }
 
-# 对应 workflow_setup：建立输出目录、批量提取 EIC 并构造 ext_Experiment。
+# Corresponds to workflow_setup: establish the output directory, extract EIC in batches and construct ext_Experiment.
 workflow_setup <- function(list_input_files, parameters) {
   sample_registry <- register_samples(list_input_files)
 
-  # auto 模式按项目大小选择 memory 或 ondisk，阈值与 Python 完全相同。
+  # auto mode selects memory or ondisk by project size, the threshold is exactly the same as in Python.
   if (identical(parameters$database_mode, "auto")) {
     database_mode <- if (
         length(list_input_files) <= parameters$project_sample_number_small) {
@@ -119,8 +119,8 @@ workflow_setup <- function(list_input_files, parameters) {
       stop("Missing extraction result for sample ID ", sample_id, call. = FALSE)
     }
 
-    # Python 当前源码把最后三个 tuple 字段错位赋值；这里按 single_sample_EICs_
-    # 的实际返回顺序恢复 acquisition_time、sample_data、sparsified，保证流程可运行。
+    # The current source code of Python misplaces the assignment of the last three tuple fields; here press single_sample_EICs_
+    # The actual return order restores acquisition_time, sample_data, and sparsified to ensure that the process can be run.
     field_names <- c(
       "status:mzml_parsing", "status:eic", "data_location",
       "max_scan_number", "list_scan_numbers", "list_retention_time",
@@ -135,7 +135,7 @@ workflow_setup <- function(list_input_files, parameters) {
   ext_Experiment__init__(sample_registry, parameters)
 }
 
-# 对应 process_project：按 workflow 执行实验处理、导出并清理磁盘中间文件。
+# Corresponds to process_project: perform experimental processing, export and clean disk intermediate files according to workflow.
 process_project <- function(list_input_files, parameters = default_parameters()) {
   experiment <- workflow_setup(list_input_files, parameters)
   workflow <- experiment$parameters$workflow
@@ -158,7 +158,7 @@ process_project <- function(list_input_files, parameters = default_parameters())
   invisible(NULL)
 }
 
-# 对应 read_project_dir：返回目录中名称包含 file_pattern 的文件路径。
+# Corresponds to read_project_dir: returns the file path whose name contains file_pattern in the directory.
 read_project_dir <- function(directory, file_pattern = ".mzML") {
   message("Working on ~~ ", directory, " ~~ \n")
   entries <- list.files(directory, all.files = FALSE, no.. = TRUE)
@@ -166,7 +166,7 @@ read_project_dir <- function(directory, file_pattern = ".mzML") {
   file.path(directory, entries)
 }
 
-# 对应 read_project_file：从文本文件读取包含 file_pattern 的绝对路径。
+# Corresponds to read_project_file: Read absolute path containing file_pattern from a text file.
 read_project_file <- function(project_file, file_pattern = ".mzML") {
   message("Working on ~~ ", project_file, " ~~ \n")
   lines <- readLines(project_file, warn = FALSE)
@@ -180,7 +180,7 @@ read_project_file <- function(project_file, file_pattern = ".mzML") {
   }, character(1), USE.NAMES = FALSE)
 }
 
-# 对应 register_samples：为输入文件依次分配 Python 0-based sample_id。
+# Corresponds to register_samples: Python 0-based sample_id is assigned to the input file in turn.
 register_samples <- function(list_input_files) {
   registry <- lapply(seq_along(list_input_files), function(ii) {
     list(sample_id = ii - 1L, input_file = list_input_files[[ii]])
@@ -189,7 +189,7 @@ register_samples <- function(list_input_files) {
   registry
 }
 
-# 对应 create_export_folders：创建项目、export 和 pickle 目录并更新参数。
+# Corresponds to create_export_folders: Create project, export and pickle directories and update parameters.
 create_export_folders <- function(parameters, time_stamp = NULL) {
   if (grepl(parameters$project_name, parameters$outdir, fixed = TRUE)) {
     message("Export folders already exist, will not overwrite.")
@@ -204,7 +204,7 @@ create_export_folders <- function(parameters, time_stamp = NULL) {
   outdir <- paste(parameters$outdir, parameters$project_name, suffix, sep = "_")
   parameters <- .workflow_set(parameters, "outdir", outdir)
 
-  # Python os.makedirs 在目标已存在时抛错；R 同样不静默覆盖已有项目。
+  # Python os.makedirs throws an error when the target already exists; R also does not silently overwrite existing projects.
   if (!dir.create(outdir, recursive = FALSE, showWarnings = FALSE)) {
     stop("Failed to create output directory: ", outdir, call. = FALSE)
   }
@@ -221,7 +221,7 @@ create_export_folders <- function(parameters, time_stamp = NULL) {
   parameters
 }
 
-# 对应 remove_intermediate_pickles：删除项目 pickle 目录下的临时文件及空目录。
+# Corresponds to remove_intermediate_pickles: delete temporary files and empty directories in the project pickle directory.
 remove_intermediate_pickles <- function(parameters) {
   if (!is.null(parameters$reuse_intermediates)) {
     stop("Cannot remove when reuse_intermediates is set.", call. = FALSE)
@@ -235,7 +235,7 @@ remove_intermediate_pickles <- function(parameters) {
     }
     if (!file.remove(entry)) stop("Failed to remove intermediate: ", entry)
   }
-  # 前面已逐项确认并删除文件，此处只移除已经为空的精确 pickle_dir。
+  # The files have been confirmed and deleted one by one before, here only the exact pickle_dir that is empty is removed.
   removal_status <- unlink(pickle_dir, recursive = TRUE, force = FALSE)
   if (removal_status != 0L) {
     message("Failed to remove directory ", pickle_dir, ".")
@@ -243,7 +243,7 @@ remove_intermediate_pickles <- function(parameters) {
   invisible(NULL)
 }
 
-# 对应 make_iter_parameters：生成每个样本的提取任务 tuple。
+# Corresponds to make_iter_parameters: generate extraction task tuple for each sample.
 make_iter_parameters <- function(sample_registry, parameters) {
   lapply(sample_registry, function(sample) {
     sample_name <- sub("\\.mzML", "", basename(sample$input_file))
@@ -254,7 +254,7 @@ make_iter_parameters <- function(sample_registry, parameters) {
   })
 }
 
-# 对应 batch_EIC_from_samples_：批量执行单样本质量轨迹提取并合并结果。
+# Corresponds to batch_EIC_from_samples_: Execute single sample mass track extraction in batches and merge the results.
 batch_EIC_from_samples_ <- function(sample_registry, parameters) {
   jobs <- make_iter_parameters(sample_registry, parameters)
   workers <- parameters$multicores
@@ -272,7 +272,7 @@ batch_EIC_from_samples_ <- function(sample_registry, parameters) {
   merged
 }
 
-# 对应 single_sample_EICs_：提取一个 mzML 的质量轨迹、锚点和扫描信息。
+# Corresponds to single_sample_EICs_: extract mass track, anchor point and scan information of an mzML.
 single_sample_EICs_ <- function(job) {
   sample_id <- job[[1L]]
   infile <- job[[2L]]
@@ -342,14 +342,14 @@ single_sample_EICs_ <- function(job) {
   })
 }
 
-# 对应 process_xics：仅提取并保存 XIC，不运行 Experiment/FeatureTable。
+# Corresponds to process_xics: only extract and save XIC, do not run Experiment/FeatureTable.
 process_xics <- function(list_input_files, parameters) {
   parameters <- .workflow_set(parameters, "database_mode", "ondisk")
   time_stamp <- paste(.workflow_time_parts(), collapse = "")
   parameters <- create_export_folders(parameters, time_stamp)
 
-  # Python 当前源码误写为 register_samples(register_samples(files))；
-  # R 使用一次登记，避免把 sample ID 当作 mzML 路径。
+  # The current source code of Python is mistakenly written as register_samples(register_samples(files));
+  # R uses one-time registration to avoid treating sample IDs as mzML paths.
   batch_EIC_from_samples_(register_samples(list_input_files), parameters)
   message(
     "XICs were stored as pickle objects under ",
@@ -358,7 +358,7 @@ process_xics <- function(list_input_files, parameters) {
   invisible(NULL)
 }
 
-# 对应 get_mz_list：跳过表头，读取首列 tab/comma 分隔的目标 m/z。
+# Corresponds to get_mz_list: skip the header and read the target m/z separated by tab/comma in the first column.
 get_mz_list <- function(infile) {
   lines <- readLines(infile, warn = FALSE)
   if (length(lines) <= 1L) return(numeric())

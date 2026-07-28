@@ -1,6 +1,6 @@
-# 对应 Python asari/tools/file_io.py：特征表与JSON风格记录之间的转换。
+# Corresponds to Python asari/tools/file_io.py: Conversion between feature table and JSON style records.
 
-# 对应 read_features_from_asari_table：从asari表格文本读取峰列表。
+# Corresponds to read_features_from_asari_table: reads the peak list from the asari table text.
 read_features_from_asari_table <- function(
     text_table,
     id_col = 0L,
@@ -15,7 +15,7 @@ read_features_from_asari_table <- function(
     snr = 9L,
     detection_counts = 10L,
     delimiter = "\t") {
-  # Python参数是0基列号，进入R后统一加1。
+  # The Python parameter is the base number of 0, which is increased by 1 after entering R.
   column <- as.integer(c(
     id_col, mz_col, rtime_col, left_base, right_base,
     parent_masstrack_id, peak_area, cSelectivity,
@@ -60,7 +60,7 @@ read_features_from_asari_table <- function(
   list(num_samples, peaks)
 }
 
-# 对应 export_json_to_table：字段名作为表头，id字段始终放在第一列。
+# Corresponds to export_json_to_table: the field name is used as the header, and the id field is always placed in the first column.
 export_json_to_table <- function(j, outfile, sep = "\t") {
   if (length(j) == 0L) stop("j must contain at least one record.", call. = FALSE)
   fields <- names(j[[1L]])
@@ -75,7 +75,7 @@ export_json_to_table <- function(j, outfile, sep = "\t") {
   invisible(NULL)
 }
 
-# 对应 read_table_to_json：所有字段均按字符串读取，不自动推断类型。
+# Corresponds to read_table_to_json: all fields are read as strings, and types are not automatically inferred.
 read_table_to_json <- function(file, sep = "\t") {
   lines <- readLines(file, warn = FALSE)
   if (length(lines) == 0L) stop("Table is empty.", call. = FALSE)
@@ -83,7 +83,7 @@ read_table_to_json <- function(file, sep = "\t") {
   if (length(lines) == 1L) return(list())
   lapply(lines[-1L], function(line) {
     values <- strsplit(sub("\r$", "", line), sep, fixed = TRUE)[[1L]]
-    # Python zip会截断较长一侧；R中也只保留两者共同长度。
+    # Python zip will truncate the longer side; in R, only the common length of both is retained.
     size <- min(length(header), length(values))
     stats::setNames(as.list(values[seq_len(size)]), header[seq_len(size)])
   })

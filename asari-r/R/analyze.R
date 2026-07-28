@@ -1,13 +1,13 @@
-# 对应 Python asari/analyze.py：单文件质量轨迹统计和自动峰高估计。
+# Corresponds to Python asari/analyze.py: single file mass track statistics and automatic peak height estimation.
 
-# 调用数据库适配器方法，避免analyze.R反向依赖annotate.R的内部辅助函数。
+# Call the database adapter method to avoid analyze.R's reverse dependence on the internal auxiliary function of annotate.R.
 .analyze_call <- function(object, method, ...) {
   callback <- if (is.environment(object)) object[[method]] else object[[method]]
   if (!is.function(callback)) stop("Analysis adapter lacks method: ", method)
   callback(...)
 }
 
-# 从mzML或测试注入表读取MS级别与极性。
+# Read MS level and polarity from mzML or test injection table.
 .analyze_scan_header <- function(infile, parameters) {
   if (!is.null(parameters$scan_header)) return(parameters$scan_header)
   if (!requireNamespace("mzR", quietly = TRUE)) stop("Analyzing mzML requires mzR.")
@@ -16,7 +16,7 @@
   mzR::header(handle)
 }
 
-# 对应 analyze_single_sample：打印统计并用已知数据库估计质量偏差。
+# Corresponds to analyze_single_sample: prints statistics and estimates mass deviations using a known database.
 analyze_single_sample <- function(infile, parameters = list()) {
   cat("Analysis of ", infile, "\n\n", sep = "")
   stats <- get_file_masstrack_stats(infile, parameters, return_sample = FALSE)
@@ -33,7 +33,7 @@ analyze_single_sample <- function(infile, parameters = list()) {
   invisible(NULL)
 }
 
-# 对应 get_file_masstrack_stats：提取轨迹、同位素锚点并打印文件摘要。
+# Corresponds to get_file_masstrack_stats: extract the track, isotope anchor point and print the file summary.
 get_file_masstrack_stats <- function(infile, parameters, return_sample = FALSE) {
   header <- .analyze_scan_header(infile, parameters)
   levels <- as.integer(header$msLevel)
@@ -76,7 +76,7 @@ get_file_masstrack_stats <- function(infile, parameters, return_sample = FALSE) 
   all_mz <- vapply(tracks, `[[`, 0, "mz")
   landmark_tracks <- lapply(landmarks, function(index0) tracks[[as.integer(index0) + 1L]])
   heights <- vapply(landmark_tracks, function(track) max(track$intensity), 0)
-  # 没有同位素锚点时保留NA摘要；自动峰高路径稍后会给出明确错误。
+  # Preserve NA summary without isotope anchor; automatic peak height path will give explicit error later.
   max_height <- if (length(heights)) as.integer(max(heights)) else NA_integer_
   min_height <- if (length(heights)) as.integer(min(heights)) else NA_integer_
   sample$anchor_mz_pairs <- pairs
@@ -109,7 +109,7 @@ get_file_masstrack_stats <- function(infile, parameters, return_sample = FALSE) 
   list(landmarks, ionization_mode, min_height)
 }
 
-# 对应 match_mzdiff_pairs_by_rt：两个apex扫描差严格小于动态窗口才保留。
+# Corresponds to match_mzdiff_pairs_by_rt: The difference between the two apex scans is strictly smaller than the dynamic window and is retained.
 match_mzdiff_pairs_by_rt <- function(
     matched_mz_pairs, list_mass_tracks, max_scan_number,
     rt_window_perc = 0.05, min_scans_window = 10) {
@@ -125,7 +125,7 @@ match_mzdiff_pairs_by_rt <- function(
   }, matched_mz_pairs)
 }
 
-# 对应 __wrapped_get_file_masstrack_stats：捕获所有单文件异常。
+# Corresponds to __wrapped_get_file_masstrack_stats: captures all single file exceptions.
 `__wrapped_get_file_masstrack_stats` <- function(job) {
   infile <- job[[1L]]
   tryCatch(
@@ -137,7 +137,7 @@ match_mzdiff_pairs_by_rt <- function(
   )
 }
 
-# 对应 estimate_min_peak_height：抽样文件并取landmark最低峰高的中位数一半。
+# Corresponds to estimate_min_peak_height: sample the file and take the median half of the lowest peak height of the landmark.
 estimate_min_peak_height <- function(list_input_files, parameters) {
   lower_bound <- max(
     parameters$min_min_peak_height,

@@ -1,6 +1,6 @@
-# 对应 Python asari/tools/merge.py：合并同一研究中的多个asari特征表。
+# Corresponds to Python asari/tools/merge.py: Merge multiple asari feature table in the same study.
 
-# Python模块文档中保留的旧接口；依赖调用方提供全局容差。
+# Old interface retained in Python module documentation; relies on caller to provide global tolerance.
 match2 <- function(F1, F2) {
   ppm <- get0("PPM_tolerance", ifnotfound = 4, inherits = TRUE)
   rt <- get0("RTime_tolerance", ifnotfound = 15, inherits = TRUE)
@@ -8,7 +8,7 @@ match2 <- function(F1, F2) {
     abs(F1[[2L]] - F2[[2L]]) < rt
 }
 
-# Python模块文档中的旧RT分箱辅助函数。
+# Old RT binning helper functions from the Python module documentation.
 `__bin_by_median_rt__` <- function(List_of_peaks, tolerance) {
   tuples <- lapply(List_of_peaks, function(peak) {
     value <- if (is.environment(peak)) peak$cal_rtime else peak$cal_rtime
@@ -18,14 +18,14 @@ match2 <- function(F1, F2) {
   tools_merge_bin_by_median(tuples, function(value) max(tolerance, 0.1 * value))
 }
 
-# Python模块文档中的旧选择性统计接口。
+# Old selective statistics interface in Python module documentation.
 `_formula_selectivity_` <- function(L) {
   result <- as.list(as.integer(table(L)))
   names(result) <- names(table(L))
   result
 }
 
-# 对应可执行的 bin_by_median：动态中位数决定是否开始新分箱。
+# Corresponds to the executable bin_by_median: the dynamic median determines whether to start a new binning.
 tools_merge_bin_by_median <- function(List_of_tuples, func_tolerance) {
   if (length(List_of_tuples) == 0L) stop("List_of_tuples must be non-empty.")
   bins <- list(list(List_of_tuples[[1L]]))
@@ -44,10 +44,10 @@ tools_merge_bin_by_median <- function(List_of_tuples, func_tolerance) {
 }
 
 
-# 保留Python对外公共名，并让模块归属别名始终可审计。
+# Preserve Python's external public name and make module ownership aliases always auditable.
 bin_by_median <- tools_merge_bin_by_median
 
-# 对应 _read_asari_ftables_：读取特征键、质量和原始文本行。
+# Corresponds to _read_asari_ftables_: reads feature keys, qualities, and raw text lines.
 `_read_asari_ftables_` <- function(infile, make_feature_id = FALSE) {
   lines <- readLines(infile, warn = FALSE)
   if (length(lines) == 0L) stop("Feature table is empty.")
@@ -72,14 +72,14 @@ bin_by_median <- tools_merge_bin_by_median
   list(key_dict, data_dict)
 }
 
-# 内部函数，对应Python嵌套def find_min_delta。
+# Internal function, corresponding to Python nested def find_min_delta.
 .merge_find_min_delta <- function(values) {
   values <- sort(as.numeric(values))
   differences <- diff(c(0, values))
   min(differences[-1L])
 }
 
-# 对应 _masstrace2features_：在同一质量轨迹中按RT合并不同表的特征。
+# Corresponds to _mastrace2features_: merge features from different tables in the same mass track by RT.
 `_masstrace2features_` <- function(LL, RTime_tolerance) {
   number_tables <- length(LL)
   rt_tuples <- list()
@@ -106,7 +106,7 @@ bin_by_median <- tools_merge_bin_by_median
   })
 }
 
-# 对应 merge_feature_tables：统一质量轨迹、按RT对齐并写出合并表。
+# Corresponds to merge_feature_tables: Unify mass track, align according to RT and write the merge table.
 merge_feature_tables <- function(
     list_of_feature_tables,
     make_feature_id = FALSE,

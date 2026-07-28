@@ -3,8 +3,8 @@
 # This file should contain mass track / EIC construction and RT alignment logic.
 # The first implementation target is extract_mass_tracks().
 
-# 从 mzML 文件中读取 MS1 和 MS2 扫描。
-# MS1 数据经过强度过滤、m/z 分箱和合并后生成 mass tracks；MS2 谱图单独保存。
+# Read MS1 and MS2 scans from mzML files.
+# MS1 data are intensity filtered, m/z binning, and merged to generate mass tracks; MS2 spectra are saved separately.
 extract_mass_tracks <- function(infile,
                                 mz_tolerance_ppm = 5,
                                 min_intensity = 100,
@@ -109,7 +109,7 @@ extract_mass_tracks <- function(infile,
   )
 }
 
-# 对应Python原名 extract_massTracks_；保留其大小写和尾部下划线接口。
+# Corresponds to the original name of Python extract_massTracks_; retains its uppercase and lowercase and trailing underscore interfaces.
 extract_massTracks_ <- function(infile,
                                 mz_tolerance_ppm = 5,
                                 min_intensity = 100,
@@ -120,8 +120,8 @@ extract_massTracks_ <- function(infile,
   )
 }
 
-# 把有限 m/z 范围内的数据点整理成一条覆盖完整 RT 范围的 mass track。
-# 代表 m/z 结合中位数和最高强度点计算；同一扫描存在多个点时保留最大强度。
+# Arrange data points within a limited m/z range into a mass track covering the full RT range.
+# Represents m/z calculated combining the median and highest intensity points; when multiple points are present on the same scan, the highest intensity is retained.
 extract_single_track_full_rt_length <- function(bin,
                                                 rt_length,
                                                 intensity_data_type = numeric) {
@@ -140,14 +140,14 @@ extract_single_track_full_rt_length <- function(bin,
   list(mz, intensity_track)
 }
 
-# 对应Python原名 extract_single_track_fullrt_length。
+# Corresponds to the original name of Python extract_single_track_fullrt_length.
 extract_single_track_fullrt_length <- function(
     bin, rt_length, INTENSITY_DATA_TYPE = numeric) {
   extract_single_track_full_rt_length(bin, rt_length, INTENSITY_DATA_TYPE)
 }
 
-# 判断一个 m/z bin 应构成一条还是多条 mass tracks。
-# m/z 范围较小时直接构建一条；范围较大时先按 m/z 聚类，再逐组构建。
+# Determine whether an m/z bin should constitute one or multiple mass tracks.
+# When the m/z range is small, one line is constructed directly; when the range is large, m/z is first clustered and then constructed group by group.
 bin_to_mass_tracks <- function(bin_data_tuples, rt_length, mz_tolerance_ppm = 5) {
   bin_data_tuples <- bin_data_tuples[
     order(vapply(bin_data_tuples, function(x) x[[1L]], numeric(1)))
@@ -170,7 +170,7 @@ bin_to_mass_tracks <- function(bin_data_tuples, rt_length, mz_tolerance_ppm = 5)
   })
 }
 
-# 对应 build_chromatogram_intensity_aware：从最高强度seed开始逐组吸收m/z容差内的点。
+# Corresponds to build_chromatogram_intensity_aware: starting from the highest intensity seed, absorbing points within the m/z tolerance group by group.
 build_chromatogram_intensity_aware <- function(
     bin_data_tuples, rt_length, mz_tolerance) {
   invisible(rt_length)
@@ -196,8 +196,8 @@ build_chromatogram_intensity_aware <- function(
   assigned
 }
 
-# 把需要拆分的 m/z 数据交给基于 m/z seeds 的最近邻聚类函数。
-# rt_length 目前不参与计算，仅保留以对应 Python 函数签名。
+# Give the m/z data that needs to be split to the nearest neighbor clustering function based on m/z seeds.
+# rt_length is currently not involved in calculations and is only reserved to correspond to Python function signatures.
 build_chromatogram_by_mz_clustering <- function(bin_data_tuples,
                                                 rt_length,
                                                 mz_tolerance) {
@@ -208,8 +208,8 @@ build_chromatogram_by_mz_clustering <- function(bin_data_tuples,
   )
 }
 
-# 合并两条属于同一离子信号的 mass tracks。
-# 两条 track 的代表 m/z 取平均，完整 RT 范围内的强度逐位置相加。
+# Merge two mass tracks belonging to the same ion signal.
+# Representative m/z of the two tracks were averaged, and the intensities over the full RT range were summed position by position.
 merge_two_mass_tracks <- function(t1, t2) {
   list(
     0.5 * (t1[[1L]] + t2[[1L]]),
@@ -217,7 +217,7 @@ merge_two_mass_tracks <- function(t1, t2) {
   )
 }
 
-# 对应 get_thousandth_bins 内部 __rough_check_consecutive_scans__。
+# Corresponds to get_thousandth_bins internal __rough_check_consecutive_scans__.
 `__rough_check_consecutive_scans__` <- function(
     datatuples, gap_allowed = 2, min_timepoints = 5) {
   checked <- TRUE
@@ -236,13 +236,13 @@ merge_two_mass_tracks <- function(t1, t2) {
   checked
 }
 
-# 对应 get_thousandth_bins 内部 __check_min_peak_height__。
+# Corresponds to get_thousandth_bins internal __check_min_peak_height__.
 `__check_min_peak_height__` <- function(datatuples, min_peak_height) {
   max(vapply(datatuples, function(point) point[[3L]], numeric(1))) >= min_peak_height
 }
 
-# 合并相邻或 ppm 范围内的千分位 m/z bins，并过滤弱信号和零散信号。
-# 返回的 good bins 会继续交给 bin_to_mass_tracks() 构建 mass tracks。
+# Merge adjacent or ppm-range thousandth m/z bins and filter weak and scattered signals.
+# The returned good bins will continue to be handed over to bin_to_mass_tracks() to build mass tracks.
 get_thousandth_bins <- function(mz_tree,
                                 mz_tolerance_ppm = 5,
                                 min_timepoints = 5,
@@ -286,7 +286,7 @@ get_thousandth_bins <- function(mz_tree,
   good_bins
 }
 
-# 对应 SciPy interp1d(..., fill_value = "extrapolate") 的线性插值与外推。
+# Corresponds to linear interpolation and extrapolation of SciPy interp1d(..., fill_value = "extrapolate").
 linear_interpolate_with_extrapolation <- function(x, y, xout) {
   interpolation_order <- order(x)
   x <- x[interpolation_order]
@@ -305,8 +305,8 @@ linear_interpolate_with_extrapolation <- function(x, y, xout) {
   result
 }
 
-# 使用匹配的 landmark peaks 拟合 LOWESS，将样本 scan 映射到参考样本 scan。
-# 同时返回正向和反向映射，只保存发生变化且没有超出真实范围的 scan。
+# Use the matching landmark peaks to fit LOWESS and map the sample scan to the reference sample scan.
+# Returns both forward and reverse mappings, saving only scans that have changed and have not exceeded the true range.
 rt_lowess_calibration <- function(good_landmark_peaks,
                                   selected_reference_landmark_peaks,
                                   sample_rt_numbers,
@@ -377,7 +377,7 @@ rt_lowess_calibration <- function(good_landmark_peaks,
   list(rt_cal_dict, reverse_rt_cal_dict)
 }
 
-# 删除重复的 RT landmark 配对，并过滤偏差超出三倍总体标准差的异常点。
+# Duplicate RT landmark pairs were removed and outliers with deviations exceeding three times the population standard deviation were filtered.
 clean_rt_calibration_points <- function(rt_cal_pairs) {
   pair_keys <- vapply(
     rt_cal_pairs,
@@ -402,7 +402,7 @@ clean_rt_calibration_points <- function(rt_cal_pairs) {
   )]
 }
 
-# 使用 R 的 LOWESS 拟合，并把拟合值线性插值到指定的 scan 坐标。
+# Fit using R's LOWESS and linearly interpolate the fitted values to the specified scan coordinates.
 hacked_lowess <- function(yy, xx, frac, it, xvals) {
   fitted <- stats::lowess(
     xx,
@@ -419,12 +419,12 @@ hacked_lowess <- function(yy, xx, frac, it, xvals) {
   )$y
 }
 
-# 对应Python原名 __hacked_lowess__。
+# Corresponds to Python’s original name __hacked_lowess__.
 `__hacked_lowess__` <- function(yy, xx, frac, it, xvals) {
   hacked_lowess(yy, xx, frac, it, xvals)
 }
 
-# RT 校准的调试版本：返回相同映射，并输出 landmark 与校准曲线图。
+# Debug version of RT calibration: returns the same mapping and outputs landmark and calibration curve plots.
 rt_lowess_calibration_debug <- function(good_landmark_peaks,
                                          selected_reference_landmark_peaks,
                                          sample_rt_numbers,
@@ -499,7 +499,7 @@ rt_lowess_calibration_debug <- function(good_landmark_peaks,
   calibration
 }
 
-# Python 中尚未实现的 Savitzky-Golay spline 占位函数。
+# Savitzky-Golay spline placeholder function not yet implemented in Python.
 savitzky_golay_spline <- function(good_landmark_peaks,
                                    selected_reference_landmark_peaks,
                                    sample_rt_numbers,
@@ -507,7 +507,7 @@ savitzky_golay_spline <- function(good_landmark_peaks,
   invisible(NULL)
 }
 
-# Python 中明确标记为尚未实现的 DWT RT 校准占位函数。
+# DWT RT calibration placeholder function in Python explicitly marked as not yet implemented.
 dwt_rt_calibrate <- function(good_landmark_peaks,
                              selected_reference_landmark_peaks,
                              sample_rt_numbers,
@@ -515,7 +515,7 @@ dwt_rt_calibrate <- function(good_landmark_peaks,
   stop("Not implemented", call. = FALSE)
 }
 
-# 根据 RT 校准映射，把 intensity 值复制到校准后的 scan 位置。
+# Copy the intensity value to the calibrated scan position according to the RT calibration map.
 remap_intensity_track <- function(intensity_track, new, rt_cal_dict) {
   new[seq_along(intensity_track)] <- intensity_track
 
@@ -531,7 +531,7 @@ remap_intensity_track <- function(intensity_track, new, rt_cal_dict) {
   new
 }
 
-# 使用最近边界值填充窗口，对 intensity track 做简单移动平均。
+# Fill the window with the nearest boundary value and do a simple moving average of the intensity track.
 smooth_moving_average <- function(list_intensity, size = 9) {
   left_width <- floor(size / 2)
   right_width <- size - left_width - 1L
@@ -543,7 +543,7 @@ smooth_moving_average <- function(list_intensity, size = 9) {
   }, numeric(1))
 }
 
-# 使用 LOWESS 平滑噪声较大的 intensity track。
+# Use LOWESS to smooth noisy intensity tracks.
 smooth_lowess <- function(list_intensity, frac = 0.02) {
   scan_numbers <- seq_along(list_intensity) - 1L
   hacked_lowess(

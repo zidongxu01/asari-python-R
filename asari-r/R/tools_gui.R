@@ -1,13 +1,13 @@
-# 对应 Python asari/tools/gui.py：实验性桌面GUI的可注入R前端适配层。
+# Corresponds to Python asari/tools/gui.py: An injectable R front-end adaptation layer for the experimental desktop GUI.
 
-# 对应 run_program。
+# Corresponds to run_program.
 run_program <- function(params) {
   runner <- get0("run_asari", mode = "function", inherits = TRUE)
   if (!is.function(runner)) stop("run_asari is unavailable.")
   runner(params)
 }
 
-# 对应 select_directory：优先使用GUI适配器，交互R会话可回退到tcltk。
+# Corresponds to select_directory: the GUI adapter is used first, and interactive R sessions can fall back to tcltk.
 select_directory <- function(params) {
   chooser <- getOption("asariR.select_directory")
   directory <- if (is.function(chooser)) {
@@ -21,10 +21,10 @@ select_directory <- function(params) {
   params
 }
 
-# 创建TextRedirector对应的可变对象。
+# Create a mutable object corresponding to TextRedirector.
 TextRedirector <- function(text_widget) TextRedirector__init__(text_widget)
 
-# 对应 TextRedirector.__init__。
+# Corresponds to TextRedirector.__init__.
 TextRedirector__init__ <- function(text_widget) {
   self <- new.env(parent = emptyenv())
   class(self) <- c("TextRedirector", "environment")
@@ -34,7 +34,7 @@ TextRedirector__init__ <- function(text_widget) {
   self
 }
 
-# 对应 TextRedirector.write。
+# Corresponds to TextRedirector.write.
 TextRedirector_write <- function(self, s) {
   widget <- self$text_widget
   if (is.environment(widget) && is.function(widget$insert)) {
@@ -44,17 +44,17 @@ TextRedirector_write <- function(self, s) {
   invisible(NULL)
 }
 
-# 对应空TextRedirector.flush。
+# Corresponds to empty TextRedirector.flush.
 TextRedirector_flush <- function(self) { invisible(self); invisible(NULL) }
 
-# 设置按钮状态，兼容Python config或R回调。
+# Set button state, compatible with Python config or R callback.
 .gui_button_state <- function(button, state) {
   if (is.environment(button) && is.function(button$config)) button$config(state = state)
   else if (is.function(button)) button(state)
   invisible(NULL)
 }
 
-# 对应 run_program_thread：捕获输出写入widget并恢复按钮。
+# Corresponds to run_program_thread: captures the output and writes it to the widget and restores the button.
 run_program_thread <- function(params, text_widget, continue_button) {
   redirector <- TextRedirector(text_widget)
   .gui_button_state(continue_button, "disabled")
@@ -64,18 +64,18 @@ run_program_thread <- function(params, text_widget, continue_button) {
   invisible(NULL)
 }
 
-# 对应 start_program_gui：前端适配器可异步显示，缺省时同步执行。
+# Corresponds to start_program_gui: the front-end adapter can be displayed asynchronously and executed synchronously by default.
 start_program_gui <- function(params) {
   adapter <- getOption("asariR.start_program_gui")
   if (is.function(adapter)) adapter(params, run_program_thread) else run_program(params)
   params
 }
 
-# 以下两个函数对应show_disclaimer内部回调。
+# The following two functions correspond to the internal callbacks of show_disclaimer.
 .gui_on_accept <- function(state) { state$accepted <- TRUE; invisible(NULL) }
 .gui_on_decline <- function(state) { state$accepted <- FALSE; invisible(NULL) }
 
-# 对应 show_disclaimer。
+# Corresponds to show_disclaimer.
 show_disclaimer <- function() {
   handler <- getOption("asariR.show_disclaimer")
   if (is.function(handler)) return(isTRUE(handler()))
@@ -84,7 +84,7 @@ show_disclaimer <- function() {
   identical(answer, 1L)
 }
 
-# 对应create_ui内部run_callback：按原始类型转换编辑值。
+# Corresponds to create_ui internal run_callback: convert the edited value according to the original type.
 .gui_run_callback <- function(values, types) {
   result <- list()
   for (key in names(values)) {
@@ -101,7 +101,7 @@ show_disclaimer <- function() {
   result
 }
 
-# 对应 create_ui：只暴露Python GUI支持的bool/int/float/str/None字段。
+# Corresponds to create_ui: only exposes bool/int/float/str/None fields supported by Python GUI.
 create_ui <- function(data) {
   supported <- vapply(data, function(value) is.logical(value) || is.integer(value) ||
     is.numeric(value) || is.character(value) || is.null(value), FALSE)
@@ -113,13 +113,13 @@ create_ui <- function(data) {
   lapply(result, function(value) if (identical(value, "NONE")) NULL else value)
 }
 
-# 对应create_selection_ui内部set_value。
+# Corresponds to create_selection_ui internal set_value.
 .gui_set_value <- function(value, data, key) {
   data[[key]] <- value
   data
 }
 
-# 对应 create_selection_ui。
+# Corresponds to create_selection_ui.
 create_selection_ui <- function(options, data, key) {
   selector <- getOption("asariR.select_option")
   value <- if (is.function(selector)) selector(options, key) else if (interactive()) {
@@ -129,7 +129,7 @@ create_selection_ui <- function(options, data, key) {
   .gui_set_value(value, data, key)
 }
 
-# 对应 main_gui总流程。
+# Corresponds to the main_gui overall process.
 main_gui <- function() {
   if (!show_disclaimer()) return(invisible(NULL))
   params <- select_directory(PARAMETERS)

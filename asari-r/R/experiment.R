@@ -1,7 +1,7 @@
-# 对应 Python asari/experiment.py：实验级样本管理、处理、注释和结果导出。
-# Python 的可变 ext_Experiment 类在 R 中使用带类标签的 environment 实现。
+# Corresponds to Python asari/experiment.py: experimental-level sample management, processing, annotation and result export.
+# Python's mutable ext_Experiment class is implemented in R using a class-tagged environment.
 
-# 读取 list 或 environment 字段；该辅助函数只处理 R/Python 对象结构差异。
+# Read a list or environment field; this helper only handles R/Python object structure differences.
 .experiment_get <- function(object, name, default = NULL) {
   if (is.environment(object)) {
     if (exists(name, envir = object, inherits = FALSE)) {
@@ -13,7 +13,7 @@
   default
 }
 
-# 按 sample ID 读取 registry，兼容具名 ID 和 Python 0-based 数字 ID。
+# Read the registry by sample ID, compatible with named IDs and Python 0-based numeric IDs.
 .experiment_registry_get <- function(registry, sample_id) {
   key <- as.character(sample_id)
   if (is.environment(registry) && exists(key, registry, inherits = FALSE)) {
@@ -27,13 +27,13 @@
   stop("Unknown sample id: ", key, call. = FALSE)
 }
 
-# 返回 registry 的 Python dict keys；无名称 list 使用 0-based 位置。
+# Returns the Python dict keys of the registry; unnamed lists use 0-based position.
 .experiment_registry_ids <- function(registry) {
   if (is.environment(registry)) return(ls(registry, all.names = TRUE))
   if (length(registry) == 0L) return(vector(mode = "list", length = 0L))
   if (!is.null(names(registry)) && all(nzchar(names(registry)))) {
     registry_names <- names(registry)
-    # asari sample_registry 的 Python key 是整数；R list 名称会把它自动转成字符。
+    # The Python key of asari sample_registry is an integer; the R list name will automatically convert it to a character.
     if (all(grepl("^-?[0-9]+$", registry_names))) {
       return(as.list(as.integer(registry_names)))
     }
@@ -42,7 +42,7 @@
   as.list(seq_along(registry) - 1L)
 }
 
-# 调用 environment/list 上的 Python 风格方法，并保留对象的可变副作用。
+# Calls a Python-style method on environment/list and preserves mutable side effects on the object.
 .experiment_call <- function(object, method, ...) {
   callback <- .experiment_get(object, method)
   if (!is.function(callback)) {
@@ -51,7 +51,7 @@
   callback(...)
 }
 
-# 修改 parameters 中的一个值，并重新绑定到实验对象。
+# Modify a value in parameters and rebind to the experimental object.
 .experiment_set_parameter <- function(self, name, value) {
   parameters <- self$parameters
   parameters[[name]] <- value
@@ -59,7 +59,7 @@
   invisible(value)
 }
 
-# 写出 JSON，功能对应 Python json.dump(..., cls=NpEncoder)。
+# Write JSON, the function corresponds to Python json.dump(..., cls=NpEncoder).
 .experiment_write_json <- function(value, path, pretty = TRUE) {
   if (!requireNamespace("jsonlite", quietly = TRUE)) {
     stop("JSON export requires the optional jsonlite package.", call. = FALSE)
@@ -77,7 +77,7 @@
   invisible(path)
 }
 
-# 写出真正的 Python pickle，以便 asari Python 工具继续读取 R 导出的 CMAP。
+# Write a real Python pickle so that the asari Python tool continues to read R-exported CMAPs.
 .experiment_write_pickle <- function(value, path) {
   if (!exists(".samples_find_python", mode = "function")) {
     stop("Python pickle export requires samples.R to be loaded.", call. = FALSE)
@@ -109,7 +109,7 @@
   invisible(path)
 }
 
-# experiment.py 从 default_parameters.py 导入的注释模式与 README 文本。
+# experiment.py imports the annotation pattern and README text from default_parameters.py.
 .experiment_adduct_patterns_pos <- list(
   c(21.98194, "Na/H"), c(41.026549, "ACN"),
   c(67.987424, "NaCOOH"), c(37.955882, "K/H")
@@ -148,14 +148,14 @@
   "report bugs or request features.\n"
 )
 
-# 对应 ext_Experiment.__init__：创建实验级可变类对象。
+# Corresponds to ext_Experiment.__init__: Creates experimental mutable class objects.
 ext_Experiment__init__ <- function(sample_registry, parameters) {
   self <- new.env(parent = emptyenv())
   class(self) <- c("ext_Experiment", "environment")
   self$sample_registry <- sample_registry
   self$parameters <- parameters
 
-  # Python 的 all_samples 与 all_sample_instances 指向同一个 list；active binding 保留别名。
+  # Python's all_samples and all_sample_instances point to the same list; active binding retains aliases.
   self$`.all_samples_store` <- list()
   shared_samples <- function(value) {
     if (!missing(value)) self$`.all_samples_store` <- value
@@ -164,7 +164,7 @@ ext_Experiment__init__ <- function(sample_registry, parameters) {
   makeActiveBinding("all_samples", shared_samples, self)
   makeActiveBinding("all_sample_instances", shared_samples, self)
 
-  # 先安装构造阶段需要的方法，再计算样本数量、scan 数和参考样本。
+  # First install the methods required in the construction phase, and then calculate the number of samples, number of scans and reference sample.
   self$get_valid_sample_ids <- function() ext_Experiment_get_valid_sample_ids(self)
   self$get_max_scan_number <- function(sample_registry) {
     ext_Experiment_get_max_scan_number(self, sample_registry)
@@ -183,11 +183,11 @@ ext_Experiment__init__ <- function(sample_registry, parameters) {
   self$database_mode <- parameters$database_mode
   self$reference_sample_id <- ext_Experiment_get_reference_sample_id(self)
 
-  # constructors.py 在 Python 中直接导入 SimpleSample；R 通过 factory 保持同一依赖。
+  # constructors.py imports SimpleSample directly in Python; R maintains the same dependency via factory.
   if (exists("SimpleSample__init__", mode = "function")) {
     self$sample_factory <- function(...) {
       sample <- SimpleSample__init__(...)
-      # SimpleSample 保存 Python 0-based track ID；constructors 的 R 索引边界使用 1-based。
+      # SimpleSample holds Python 0-based track IDs; R index bounds for constructors use 1-based.
       landmarks <- sample$`_mz_landmarks_`
       if (!is.null(landmarks) && length(landmarks) > 0L) {
         sample$`_mz_landmarks_` <- as.integer(landmarks) + 1L
@@ -196,7 +196,7 @@ ext_Experiment__init__ <- function(sample_registry, parameters) {
     }
   }
 
-  # 为 environment 安装剩余 Python 实例方法。
+  # Install the remaining Python instance methods for the environment.
   self$determine_acquisition_order <- function() {
     ext_Experiment_determine_acquisition_order(self)
   }
@@ -235,7 +235,7 @@ ext_Experiment__init__ <- function(sample_registry, parameters) {
   self
 }
 
-# 对应 ext_Experiment.get_reference_sample_id：按指定文件或 anchor 数选择参考样本。
+# Corresponds to ext_Experiment.get_reference_sample_id: select reference sample according to the specified file or anchor number.
 ext_Experiment_get_reference_sample_id <- function(self) {
   reference <- self$parameters$reference
   ids <- .experiment_registry_ids(self$sample_registry)
@@ -288,7 +288,7 @@ ext_Experiment_get_reference_sample_id <- function(self) {
   reference_id
 }
 
-# 对应 ext_Experiment.get_valid_sample_ids：只保留 EIC 提取成功的样本。
+# Corresponds to ext_Experiment.get_valid_sample_ids: only retain samples with successful EIC extraction.
 ext_Experiment_get_valid_sample_ids <- function(self) {
   ids <- .experiment_registry_ids(self$sample_registry)
   Filter(function(sample_id) {
@@ -301,7 +301,7 @@ ext_Experiment_get_valid_sample_ids <- function(self) {
   }, ids)
 }
 
-# 对应 ext_Experiment.determine_acquisition_order：优先按采集时间，失败时按 ID。
+# Corresponds to ext_Experiment.determine_acquisition_order: priority is based on acquisition time, and in case of failure, based on ID.
 ext_Experiment_determine_acquisition_order <- function(self) {
   ids <- .experiment_registry_ids(self$sample_registry)
   pairs <- lapply(ids, function(sample_id) {
@@ -329,7 +329,7 @@ ext_Experiment_determine_acquisition_order <- function(self) {
   })
 }
 
-# 对应 ext_Experiment.get_max_scan_number：最大 0-based scan 加一得到总长度。
+# Corresponds to ext_Experiment.get_max_scan_number: the maximum 0-based scan plus one to get the total length.
 ext_Experiment_get_max_scan_number <- function(self, sample_registry) {
   if (length(.experiment_registry_ids(sample_registry)) == 0L) return(NULL)
   if (length(self$valid_sample_ids) == 0L) stop("No valid sample is available.")
@@ -340,14 +340,14 @@ ext_Experiment_get_max_scan_number <- function(self, sample_registry) {
   }, numeric(1))) + 1L
 }
 
-# 创建 CompositeMap；测试可以提供 factory，正常运行调用 constructors.R。
+# Create a CompositeMap; tests can provide a factory and call constructors.R during normal operation.
 .experiment_make_composite_map <- function(self) {
   factory <- .experiment_get(self, "CompositeMap_factory")
   if (is.function(factory)) return(factory(self))
   CompositeMap__init__(self)
 }
 
-# 优先调用测试或扩展对象提供的方法，否则调用 constructors.R 的对应函数。
+# Methods provided by the test or extension object are called first, otherwise the corresponding function of constructors.R is called.
 .experiment_cmap_call <- function(cmap, method, ...) {
   callback <- .experiment_get(cmap, method)
   if (is.function(callback)) return(callback(...))
@@ -358,7 +358,7 @@ ext_Experiment_get_max_scan_number <- function(self, sample_registry) {
   get(function_name, mode = "function")(cmap, ...)
 }
 
-# 对应 ext_Experiment.process_all_LC：执行 LC/GC 质量网格、对齐、合成和峰检测。
+# Corresponds to ext_Experiment.process_all_LC: execute LC/GC MassGrid, alignment, synthesis and peak detection.
 ext_Experiment_process_all_LC <- function(self) {
   self$CMAP <- .experiment_make_composite_map(self)
   .experiment_cmap_call(self$CMAP, "construct_mass_grid")
@@ -370,7 +370,7 @@ ext_Experiment_process_all_LC <- function(self) {
   invisible(NULL)
 }
 
-# 对应 ext_Experiment.process_all_DIMS：只建立质量网格并提取最大强度表。
+# Corresponds to ext_Experiment.process_all_DIMS: Only create MassGrid and extract the maximum intensity table.
 ext_Experiment_process_all_DIMS <- function(self) {
   self$CMAP <- .experiment_make_composite_map(self)
   .experiment_cmap_call(self$CMAP, "construct_mass_grid")
@@ -378,12 +378,12 @@ ext_Experiment_process_all_DIMS <- function(self) {
   invisible(NULL)
 }
 
-# 对应 ext_Experiment.process_all_LCMSMS：Python 当前也是空占位。
+# Corresponds to ext_Experiment.process_all_LCMSMS: Python is currently also an empty placeholder.
 ext_Experiment_process_all_LCMSMS <- function(self) {
   invisible(NULL)
 }
 
-# 对应 ext_Experiment.export_all：按 workflow 导出质量网格、特征、日志和 README。
+# Corresponds to ext_Experiment.export_all: export the MassGrid, features, logs, and README for each workflow.
 ext_Experiment_export_all <- function(self, anno = FALSE) {
   workflow <- self$parameters$workflow
   export_dir <- file.path(self$parameters$outdir, "export")
@@ -417,7 +417,7 @@ ext_Experiment_export_all <- function(self, anno = FALSE) {
   invisible(NULL)
 }
 
-# 对应 ext_Experiment.annotate：通过 JMS 兼容对象完成三阶段注释和文件导出。
+# Corresponds to ext_Experiment.annotate: completes three-stage annotation and file export through JMS compatible objects.
 ext_Experiment_annotate <- function(self) {
   ext_Experiment_load_annotation_db(self)
   ext_Experiment_db_mass_calibrate(self)
@@ -460,7 +460,7 @@ ext_Experiment_annotate <- function(self) {
   invisible(NULL)
 }
 
-# 对应 ext_Experiment.generate_qc_plot_pdf：可用时调用 QC 绘图器，否则跳过。
+# Corresponds to ext_Experiment.generate_qc_plot_pdf: Call the QC plotter when available, otherwise skip.
 ext_Experiment_generate_qc_plot_pdf <- function(self, outfile = "qc_plot.pdf") {
   plotter <- .experiment_get(self, "asari_qc_plot")
   if (!is.function(plotter)) {
@@ -474,7 +474,7 @@ ext_Experiment_generate_qc_plot_pdf <- function(self, outfile = "qc_plot.pdf") {
   invisible(NULL)
 }
 
-# 对应 ext_Experiment.export_CMAP_pickle：导出可供 Python 可视化读取的 CMAP 数据。
+# Corresponds to ext_Experiment.export_CMAP_pickle: Exports CMAP data that can be read visually by Python.
 ext_Experiment_export_CMAP_pickle <- function(self) {
   rt_records <- lapply(self$all_samples, function(sample) {
     method <- .experiment_get(sample, "get_rt_calibration_records")
@@ -485,7 +485,7 @@ ext_Experiment_export_CMAP_pickle <- function(self) {
   export <- list(
     `_number_of_samples_` = self$CMAP$`_number_of_samples_`,
     rt_length = self$CMAP$rt_length,
-    # 使用 list 保留 Python 即使只有一个元素也仍为 list 的 JSON/pickle 结构。
+    # Using a list preserves Python's JSON/pickle structure of a list even if there is only one element.
     rt_reference_landmarks = lapply(
       self$CMAP$good_reference_landmark_peaks, `[[`, "apex"
     ),
@@ -503,7 +503,7 @@ ext_Experiment_export_CMAP_pickle <- function(self) {
   invisible(NULL)
 }
 
-# 对应 ext_Experiment.load_annotation_db：加载外部 JMS 已知化合物数据库适配器。
+# Corresponds to ext_Experiment.load_annotation_db: Loads the external JMS known compound database adapter.
 ext_Experiment_load_annotation_db <- function(self, src = "hmdb4") {
   factory <- .experiment_get(self, "knownCompoundDatabase_factory")
   if (!is.function(factory)) {
@@ -516,7 +516,7 @@ ext_Experiment_load_annotation_db <- function(self, src = "hmdb4") {
   invisible(NULL)
 }
 
-# 对应 ext_Experiment.db_mass_calibrate：按数据库估计的系统偏差校正全部 feature m/z。
+# Corresponds to ext_Experiment.db_mass_calibrate: correct all feature m/z according to the system bias estimated by the database.
 ext_Experiment_db_mass_calibrate <- function(
     self, required_calibrate_threshold = 0.000002) {
   rows <- vapply(
@@ -555,7 +555,7 @@ ext_Experiment_db_mass_calibrate <- function(
   invisible(NULL)
 }
 
-# 对应 ext_Experiment.append_orphans_to_epmCpds：把未注释 feature 包装成孤儿 empCpd。
+# Corresponds to ext_Experiment.append_orphans_to_epmCpds: wrap unannotated features into orphan empCpd.
 ext_Experiment_append_orphans_to_epmCpds <- function(self, dict_empCpds) {
   all_feature_ids <- unlist(lapply(dict_empCpds, function(compound) {
     vapply(
@@ -582,7 +582,7 @@ ext_Experiment_append_orphans_to_epmCpds <- function(self, dict_empCpds) {
   dict_empCpds
 }
 
-# 对应 ext_Experiment.export_peak_annotation：生成逐 feature 的注释 TSV。
+# Corresponds to ext_Experiment.export_peak_annotation: Generate feature-by-feature annotation TSV.
 ext_Experiment_export_peak_annotation <- function(
     self, dict_empCpds, KCD, export_file_name_prefix) {
   header <- c(
@@ -605,7 +605,7 @@ ext_Experiment_export_peak_annotation <- function(
         ), ")")
       }, character(1)), collapse = ", ")
       matched_records <- paste(vapply(matches, function(match) {
-        # 模拟 Python str(tuple)：字符值带单引号，数值保持普通文本。
+        # Emulates Python str(tuple): character values are enclosed in single quotes, numeric values remain normal text.
         values <- vapply(match, function(value) {
           if (is.character(value)) paste0("'", value, "'") else {
             as.character(value)
@@ -635,7 +635,7 @@ ext_Experiment_export_peak_annotation <- function(
   invisible(NULL)
 }
 
-# 对应 ext_Experiment.select_unique_compound_features：每个 empCpd 选择一个代表峰。
+# Corresponds to ext_Experiment.select_unique_compound_features: select a representative peak for each empCpd.
 ext_Experiment_select_unique_compound_features <- function(self, dict_empCpds) {
   selected <- list()
   for (compound_id in names(dict_empCpds)) {
@@ -666,7 +666,7 @@ ext_Experiment_select_unique_compound_features <- function(self, dict_empCpds) {
   invisible(NULL)
 }
 
-# 对应 ext_Experiment.export_feature_tables：导出 full、preferred 和 unique 表。
+# Corresponds to ext_Experiment.export_feature_tables: export full, preferred and unique tables.
 ext_Experiment_export_feature_tables <- function(
     self, `_snr` = 2, `_peak_shape` = 0.7, `_cSelectivity` = 0.7) {
   if (isTRUE(self$parameters$drop_unaligned_samples)) {
@@ -768,7 +768,7 @@ ext_Experiment_export_feature_tables <- function(
   invisible(NULL)
 }
 
-# 对应 ext_Experiment.export_log：补充样本统计并写出 project.json。
+# Corresponds to ext_Experiment.export_log: Supplement sample statistics and write project.json.
 ext_Experiment_export_log <- function(self) {
   .experiment_set_parameter(self, "number_of_samples", self$number_of_samples)
   .experiment_set_parameter(self, "number_scans", self$number_scans)
@@ -782,7 +782,7 @@ ext_Experiment_export_log <- function(self) {
   invisible(NULL)
 }
 
-# 对应 ext_Experiment.export_readme：写出 Python 默认说明文字。
+# Corresponds to ext_Experiment.export_readme: Write Python default description text.
 ext_Experiment_export_readme <- function(self) {
   connection <- file(
     file.path(self$parameters$outdir, "README.txt"),
@@ -793,10 +793,10 @@ ext_Experiment_export_readme <- function(self) {
   invisible(NULL)
 }
 
-# 使用接近 Python 类名的构造器别名。
+# Use a constructor alias close to the Python class name.
 ext_Experiment <- ext_Experiment__init__
 
-# 保留早期 smoke_check.R 使用的兼容构造器；它不属于 Python 的 20 个 def。
+# Preserves the compatibility constructor used by early smoke_check.R; it is not part of Python's 20 defs.
 new_experiment <- function(samples = list(), parameters = default_parameters()) {
   list(samples = samples, parameters = parameters)
 }

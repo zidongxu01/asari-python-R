@@ -1,6 +1,6 @@
-# 对应 Python asari/tools/gc_annotation.py：旧版GC注释类和EI谱库封装。
+# Corresponds to Python asari/tools/gc_annotation.py: old version of GC annotation class and EI spectral library package.
 
-# 创建GC_Annotation混入对象；Python类没有__init__，R工厂只负责提供可变容器。
+# Create a GC_Annotation mix-in object; Python classes do not have __init__, and the R factory is only responsible for providing mutable containers.
 GC_Annotation <- function(parameters = list(), sample_registry = list(), sample_factory = NULL) {
   self <- new.env(parent = emptyenv())
   class(self) <- c("GC_Annotation", "environment")
@@ -16,7 +16,7 @@ GC_Annotation <- function(parameters = list(), sample_registry = list(), sample_
   self
 }
 
-# 构建支持区间外线性外推的插值函数，对应scipy interp1d(..., extrapolate)。
+# Construct an interpolation function that supports linear extrapolation outside the interval, corresponding to scipy interp1d(..., extrapolate).
 .gc_approxfun_extrapolate <- function(x, y) {
   ordering <- order(x)
   x <- as.numeric(x[ordering])
@@ -35,7 +35,7 @@ GC_Annotation <- function(parameters = list(), sample_registry = list(), sample_
   }
 }
 
-# 从环境或list样本读取字段。
+# Read fields from environment or list samples.
 .gc_sample_field <- function(sample, names) {
   for (name in names) {
     value <- if (is.environment(sample)) sample[[name]] else sample[[name]]
@@ -44,7 +44,7 @@ GC_Annotation <- function(parameters = list(), sample_registry = list(), sample_
   NULL
 }
 
-# 对应 GC_Annotation.populate_RI_lookup：由标准品RT拟合RT到RI及RI到扫描号模型。
+# Corresponds to GC_Annotation.populate_RI_lookup: Fit RT to RI and RI to scan number model from standard RT.
 GC_Annotation_populate_RI_lookup <- function(self, sample_map) {
   ri_maps <- list()
   ri_models <- list()
@@ -93,7 +93,7 @@ GC_Annotation_populate_RI_lookup <- function(self, sample_map) {
       if (is.null(previous_index) || is.null(previous_rt)) {
         stop("Retention time precedes the first RI standard, matching Python failure.")
       }
-      # 保留Python原式中的(next_rt - rt)分母。
+      # Keep the (next_rt - rt) denominator in the original Python formula.
       ri_value <- 100 * (previous_index + ((rt - previous_rt) / (next_rt - rt)))
       indexes <- c(indexes, ri_value)
       ri_maps[[key]][[as.character(rt)]] <- ri_value
@@ -109,7 +109,7 @@ GC_Annotation_populate_RI_lookup <- function(self, sample_map) {
   invisible(NULL)
 }
 
-# 对应 GC_Annotation.convert_to_RI：按sample_map引用的模型写入registry。
+# Corresponds to GC_Annotation.convert_to_RI: write to the registry according to the model referenced by sample_map.
 GC_Annotation_convert_to_RI <- function(self, sample_map) {
   if (is.null(self$RI_map) || length(self$RI_map) == 0L) self$populate_RI_lookup(sample_map)
   for (key in names(sample_map)) {
@@ -121,7 +121,7 @@ GC_Annotation_convert_to_RI <- function(self, sample_map) {
   invisible(NULL)
 }
 
-# 对应 GC_Annotation.annotate_GC：注释preferred和full两张表。
+# Corresponds to GC_Annotation.annotate_GC: annotate the preferred and full tables.
 GC_Annotation_annotate_GC <- function(self) {
   preferred <- file.path(
     self$parameters$outdir,
@@ -136,10 +136,10 @@ GC_Annotation_annotate_GC <- function(self) {
   invisible(NULL)
 }
 
-# 创建EI_MS_Library对应的可变对象。
+# Create a variable object corresponding to EI_MS_Library.
 EI_MS_Library <- function(library_ID, multicores = NULL) EI_MS_Library__init__(library_ID, multicores)
 
-# 对应 EI_MS_Library.__init__。
+# Corresponds to EI_MS_Library.__init__.
 EI_MS_Library__init__ <- function(library_ID, multicores = NULL) {
   self <- new.env(parent = emptyenv())
   class(self) <- c("EI_MS_Library", "environment")
@@ -159,7 +159,7 @@ EI_MS_Library__init__ <- function(library_ID, multicores = NULL) {
   self
 }
 
-# 把MSP/MGF/JSON记录统一成轻量Spectrum对象。
+# Unify MSP/MGF/JSON records into lightweight Spectrum objects.
 .gc_library_spectrum <- function(entry) {
   if (!is.null(entry$mz) && !is.null(entry$intensities)) return(entry)
   peaks <- entry$peaks
@@ -173,7 +173,7 @@ EI_MS_Library__init__ <- function(library_ID, multicores = NULL) {
   .feature_graph_spectrum(matrix_peaks[, 1L], matrix_peaks[, 2L], metadata)
 }
 
-# 对应 EI_MS_Library.load_library：选择解析器、限制数量并过滤归一化。
+# Corresponds to EI_MS_Library.load_library: select parser, limit number and filter normalization.
 EI_MS_Library_load_library <- function(self, limit = NULL) {
   extension <- sub("^\\.", "", self$library_meta$Extension)
   loader <- getOption("asariR.spectral_library_loader")
@@ -196,7 +196,7 @@ EI_MS_Library_load_library <- function(self, limit = NULL) {
   invisible(NULL)
 }
 
-# 定位asari数据库目录。
+# Locate the asari database directory.
 .gc_annotation_db_dir <- function() {
   configured <- getOption("asariR.db_dir", "")
   if (nzchar(configured)) return(configured)
@@ -210,7 +210,7 @@ EI_MS_Library_load_library <- function(self, limit = NULL) {
   if (length(existing)) existing[[1L]] else ""
 }
 
-# 对应 EI_MS_Library.retrieve_library_meta。
+# Corresponds to EI_MS_Library.retrieve_library_meta.
 EI_MS_Library_retrieve_library_meta <- function(self, library_ID) {
   invisible(self)
   if (file.exists(library_ID) && !dir.exists(library_ID)) {
@@ -248,7 +248,7 @@ EI_MS_Library_retrieve_library_meta <- function(self, library_ID) {
   entry
 }
 
-# 对应静态方法 load_library_manifest；option用于测试注入，磁盘结果缓存在环境中。
+# Corresponds to the static method load_library_manifest; option is used for test injection, and the disk results are cached in the environment.
 .gc_manifest_cache <- new.env(parent = emptyenv())
 EI_MS_Library_load_library_manifest <- function() {
   injected <- getOption("asariR.gcms_library_manifest")
@@ -262,7 +262,7 @@ EI_MS_Library_load_library_manifest <- function() {
   .gc_manifest_cache$manifest
 }
 
-# 对应 annotate_gc_feature_table：构建共洗脱谱并与整个EI库逐一比较。
+# Corresponds to annotate_gc_feature_table: Construct co-elution spectra and compare them one by one with the entire EI library.
 EI_MS_Library_annotate_gc_feature_table <- function(
     self,
     feature_table_path,
@@ -293,7 +293,7 @@ EI_MS_Library_annotate_gc_feature_table <- function(
   invisible(NULL)
 }
 
-# 对应静态方法 annotate_gc_feature_table_with_library。
+# Corresponds to the static method annotate_gc_feature_table_with_library.
 EI_MS_Library_annotate_gc_feature_table_with_library <- function(
     feature_table_path, library_ID, multicores = NULL) {
   library <- EI_MS_Library(library_ID, multicores)
@@ -301,7 +301,7 @@ EI_MS_Library_annotate_gc_feature_table_with_library <- function(
   invisible(NULL)
 }
 
-# 对应 wrapped_cosine：返回原job和CosineGreedy评分二元组。
+# Corresponds to wrapped_cosine: Returns the original job and CosineGreedy score tuples.
 wrapped_cosine <- function(job) {
   pairer <- getOption("asariR.cosine_greedy_pair")
   score <- if (is.function(pairer)) {

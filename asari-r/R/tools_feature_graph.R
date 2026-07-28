@@ -1,14 +1,14 @@
-# 对应 Python asari/tools/feature_graph.py：把GC特征表转换成共洗脱关系图。
+# Corresponds to Python asari/tools/feature_graph.py: Convert GC feature table into a co-elution relationship graph.
 
-# 读取data.frame一行并转换成标量具名list。
+# Read a row of data.frame and convert it into a scalar named list.
 .feature_graph_row <- function(data, row) {
   lapply(data[row, , drop = FALSE], function(value) value[[1L]])
 }
 
-# 创建Python FeatureGraph对应的可变R环境对象。
+# Create a variable R environment object corresponding to Python FeatureGraph.
 FeatureGraph <- function(ft_path, graph = NULL) FeatureGraph__init__(ft_path, graph)
 
-# 对应 FeatureGraph.__init__。
+# Corresponds to FeatureGraph.__init__.
 FeatureGraph__init__ <- function(ft_path, graph = NULL) {
   self <- new.env(parent = emptyenv())
   class(self) <- c("FeatureGraph", "environment")
@@ -22,7 +22,7 @@ FeatureGraph__init__ <- function(ft_path, graph = NULL) {
   if (is.null(self$graph)) stop("Either a graph or a feature table path must be provided.")
   if (is.null(self$df)) stop("Either a graph or a feature table path must be provided.")
 
-  # 安装与Python实例方法同名的闭包。
+  # Install a closure with the same name as a Python instance method.
   self$ft_to_graph <- function() FeatureGraph_ft_to_graph(self)
   self$graph_to_ft <- function() FeatureGraph_graph_to_ft(self)
   self$filter_graph <- function(drt = 0.5) FeatureGraph_filter_graph(self, drt)
@@ -36,18 +36,18 @@ FeatureGraph__init__ <- function(ft_path, graph = NULL) {
   self
 }
 
-# 对应静态方法 ftgraph_from_ft。
+# Corresponds to the static method ftgraph_from_ft.
 FeatureGraph_ftgraph_from_ft <- function(ft_path) FeatureGraph(ft_path)
 
-# 对应静态方法 ftgraph_from_graph。
+# Corresponds to the static method ftgraph_from_graph.
 FeatureGraph_ftgraph_from_graph <- function(ft_path, graph) FeatureGraph(ft_path, graph)
 
-# 对应静态方法 metric。
+# Corresponds to the static method metric.
 FeatureGraph_metric <- function(x, y) {
   c(abs(as.numeric(x$mz) - as.numeric(y$mz)), abs(as.numeric(x$rtime) - as.numeric(y$rtime)))
 }
 
-# 对应 ft_to_graph：建立包含全部特征对的无向完全图。
+# Corresponds to ft_to_graph: Create an undirected complete graph containing all feature pairs.
 FeatureGraph_ft_to_graph <- function(self) {
   if (is.null(self$df)) return(NULL)
   records <- lapply(seq_len(nrow(self$df)), function(ii) .feature_graph_row(self$df, ii))
@@ -69,7 +69,7 @@ FeatureGraph_ft_to_graph <- function(self) {
   list(nodes = nodes, edges = edges)
 }
 
-# 对应 graph_to_ft：把图节点属性恢复成data.frame。
+# Corresponds to graph_to_ft: restore graph node attributes to data.frame.
 FeatureGraph_graph_to_ft <- function(self) {
   records <- unname(self$graph$nodes)
   if (length(records) == 0L || all(lengths(records) == 0L)) return(data.frame())
@@ -80,14 +80,14 @@ FeatureGraph_graph_to_ft <- function(self) {
   as.data.frame(do.call(rbind, lapply(rows, as.data.frame)), stringsAsFactors = FALSE)
 }
 
-# 本文件私有的空值替代运算符。
+# Null substitution operator private to this file.
 `%||%` <- function(value, fallback) if (is.null(value)) fallback else value
 
-# 对应 filter_graph：仅保留drt严格小于阈值的边及其端点。
+# Corresponds to filter_graph: only retain the edges and their endpoints where drt is strictly less than the threshold.
 FeatureGraph_filter_graph <- function(self, drt = 0.5) {
   selected <- self$graph$edges[self$graph$edges$drt < drt, , drop = FALSE]
   node_ids <- unique(c(selected$u, selected$v))
-  # NetworkX add_edges_from只带(u,v)，因此过滤图不保留原边属性。
+  # NetworkX add_edges_from only takes (u, v), so the filtered graph does not retain the original edge attributes.
   filtered_edges <- if (nrow(selected)) {
     data.frame(u = selected$u, v = selected$v, dmz = NA_real_, drt = NA_real_)
   } else data.frame(u = character(), v = character(), dmz = numeric(), drt = numeric())
@@ -98,7 +98,7 @@ FeatureGraph_filter_graph <- function(self, drt = 0.5) {
   )
 }
 
-# 计算无向图连接分量，返回节点id字符向量列表。
+# Calculate the connected components of the undirected graph and return a list of node id character vectors.
 .feature_graph_components <- function(graph) {
   nodes <- names(graph$nodes)
   components <- list()
@@ -121,7 +121,7 @@ FeatureGraph_filter_graph <- function(self, drt = 0.5) {
   components
 }
 
-# 对应 find_spectral_clusters：连接分量编号从0开始。
+# Corresponds to find_spectral_clusters: the connection component number starts from 0.
 FeatureGraph_find_spectral_clusters <- function(self) {
   if (is.null(self$graph)) stop("Must have a graph to find spectral clusters.")
   components <- .feature_graph_components(self$graph)
@@ -141,7 +141,7 @@ FeatureGraph_find_spectral_clusters <- function(self) {
   invisible(NULL)
 }
 
-# 创建轻量Spectrum兼容对象。
+# Create lightweight Spectrum-compatible objects.
 .feature_graph_spectrum <- function(mzs, intensities, metadata) {
   list(
     mz = as.numeric(mzs), intensities = as.numeric(intensities),
@@ -150,7 +150,7 @@ FeatureGraph_find_spectral_clusters <- function(self) {
   )
 }
 
-# 默认谱图过滤/归一化；用户可通过options注入matchms等价后端。
+# Default spectrum filtering/normalization; users can inject matchms equivalent backend through options.
 .feature_graph_process_spectrum <- function(spectrum) {
   filter <- getOption("asariR.spectrum_default_filters")
   normalize <- getOption("asariR.spectrum_normalize")
@@ -164,7 +164,7 @@ FeatureGraph_find_spectral_clusters <- function(self) {
   spectrum
 }
 
-# 对应 extract_fragmentation_spectrum：每个cluster选择总强度最高且峰数足够的样本。
+# Corresponds to extract_fragmentation_spectrum: Each cluster selects the sample with the highest total intensity and sufficient number of peaks.
 FeatureGraph_extract_fragmentation_spectrum <- function(
     self, find_clusters = FALSE, MIN_PEAKS_EXTRACTION = 3L) {
   if (isTRUE(find_clusters)) self$find_spectral_clusters()
@@ -190,7 +190,7 @@ FeatureGraph_extract_fragmentation_spectrum <- function(
       }
     }
     if (length(spectra) == 1L) {
-      # Python原版只赋值但没有append，保留这一实际行为。
+      # The original version of Python only assigns values but does not append, retaining this actual behavior.
       selected_spectrum <- spectra[[1L]]
       invisible(selected_spectrum)
     } else if (length(spectra) > 1L) {
@@ -207,7 +207,7 @@ FeatureGraph_extract_fragmentation_spectrum <- function(
   processed
 }
 
-# 对应 map_annotations：把cluster匹配传播到其中每个feature并输出注释表。
+# Corresponds to map_annotations: propagate the cluster matching to each feature and output the annotation table.
 FeatureGraph_map_annotations <- function(
     self, matches, to_extract = c("compound_name", "inchikey", "formula")) {
   records <- lapply(seq_len(nrow(self$df)), function(ii) .feature_graph_row(self$df, ii))
@@ -219,13 +219,13 @@ FeatureGraph_map_annotations <- function(
     }), use.names = FALSE)
     for (feature in self$clusters[[cluster_id]]) {
       existing <- feature_table[[feature]]$annotations %||% list()
-      # Python缩进导致同一最终annotation每个字段追加一次。
+      # Python indentation causes the same final annotation to be appended once per field.
       feature_table[[feature]]$annotations <- c(
         existing, rep(list(annotation), length(to_extract))
       )
     }
   }
-  # 原始列保持data.frame类型，注释单独作为list-column，避免rbind将嵌list错转为字符。
+  # The original column maintains the data.frame type, and the annotation is used as a list-column alone to prevent rbind from misconverting the embedded list into characters.
   ids <- as.character(self$df$id_number)
   self$df$annotations <- I(lapply(ids, function(id) {
     feature_table[[id]]$annotations %||% list()

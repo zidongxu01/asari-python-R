@@ -1,12 +1,12 @@
-# 对应 asari/mass_functions.py 的质量操作函数。
-# 本文件放置 m/z 距离检查、选择性评分、聚类和基于 seed 的分组逻辑。
-# 兼容约定：Python 0-based 位置转为 R 1-based，tuple 返回值转为命名 list，
-# Python None 转为 NA_integer_；有效科学输入下保留 Python 的计算、排序和边界规则。
+# Corresponds to the mass operation function of asari/mass_functions.py.
+# This file places m/z distance checks, selectivity scoring, clustering, and seed-based grouping logic.
+# Compatibility convention: Python 0-based position is converted to R 1-based, tuple return value is converted to named list,
+# Python None is converted to NA_integer_; Python calculations, ordering, and boundary rules are preserved under valid scientific input.
 
-# 将二元 tuple 列表展平，并且每个值只保留一次。
+# Flatten a list of binary tuples and retain each value exactly once.
 #
-# 遍历顺序与 Python 版一致：先收集所有第一个元素，再收集所有第二个元素。
-# R 的 unique() 会保留首次出现的顺序，因此返回顺序比 Python set() 更稳定。
+# The order of traversal is the same as in the Python version: all first elements are collected first, then all second elements.
+# R's unique() preserves the order of first occurrence, so the return order is more stable than Python's set().
 flatten_tuplelist <- function(tuple_list) {
   if (!is.list(tuple_list)) {
     stop("tuple_list must be a list.", call. = FALSE)
@@ -23,10 +23,10 @@ flatten_tuplelist <- function(tuple_list) {
   unique(unlist(c(first_elements, second_elements), use.names = FALSE))
 }
 
-# 在已按升序排列的 m/z 中，找出距离小于 ppm 容差的相邻值。
+# Find adjacent values in m/z that are sorted in ascending order and are closer than the ppm tolerance.
 #
-# Python 版返回从 0 开始的 (ii, ii - 1)；这里返回对应的 R 1-based 位置，
-# 使调用者可以直接用它索引 R 向量或列表。
+# The Python version returns (ii, ii - 1) starting from 0; here the corresponding R 1-based position is returned,
+# Enables the caller to directly use it to index an R vector or list.
 check_close_mzs <- function(mzs, mz_tolerance_ppm = 5) {
   if (!is.numeric(mzs) || any(!is.finite(mzs))) {
     stop("mzs must be a finite numeric vector.", call. = FALSE)
@@ -58,16 +58,16 @@ check_close_mzs <- function(mzs, mz_tolerance_ppm = 5) {
   close_pairs
 }
 
-# 对应 calculate_selectivity 内部 __sel__：将ppm间隔转成0到1选择性。
+# Corresponds to calculate_selectivity internal __sel__: convert ppm interval into 0 to 1 selectivity.
 `__sel__` <- function(x, std_ppm = 5) {
   if (x > 100) 1 else if (x < 0.1) 0 else 1 - exp(-x / std_ppm)
 }
 
-# 计算排序 m/z 列表中每个 m/z 的质量选择性（mSelectivity）。
+# Compute mass selectivity (mSelectivity) for each m/z in the sorted m/z list.
 #
-# 每个分数位于 0 到 1 之间：越接近 1，表示该 m/z 与附近 m/z 越容易区分。
-# 实现保留 Python 版的计算方式：先计算相邻 ppm 距离，再将当前 m/z
-# 与最多两个较低、两个较高邻居的选择性分数相乘。
+# Each score lies between 0 and 1: the closer it is to 1, the more distinguishable that m/z is from nearby m/z.
+# Implement the calculation method that retains the Python version: first calculate the adjacent ppm distance, and then add the current m/z
+# Multiply the selectivity scores of up to two lower and two upper neighbors.
 calculate_selectivity <- function(sorted_mz_list, std_ppm = 5) {
   if (!is.numeric(sorted_mz_list) || any(!is.finite(sorted_mz_list))) {
     stop("sorted_mz_list must be a finite numeric vector.", call. = FALSE)
@@ -79,17 +79,17 @@ calculate_selectivity <- function(sorted_mz_list, std_ppm = 5) {
     stop("std_ppm must be one finite, positive number.", call. = FALSE)
   }
 
-  # 内部def已显式拆出，这里固定当前std_ppm。
+  # The internal def has been explicitly removed, and the current std_ppm is fixed here.
   selectivity_from_ppm <- function(ppm_distance) `__sel__`(ppm_distance, std_ppm)
 
-  # Python不强制验证升序；提取后合并轨迹追加在末尾时，landmark子集可能短暂非升序。
-  # 此时负ppm间隔经 __sel__ 转为0，这正是Python实际流程依赖的行为。
+  # Python does not force verification of ascending order; when the merged mass track is appended to the end after extraction, the landmark subset may be temporarily non-ascending.
+  # At this point, the negative ppm interval is converted to 0 via __sel__, which is exactly the behavior that Python's actual process relies on.
   mz_count <- length(sorted_mz_list)
   ppm_distances <- 1e6 *
     diff(sorted_mz_list) /
     sorted_mz_list[-mz_count]
 
-  # 前两个 m/z 只有不完整的左侧邻居，按 Python 版单独计算。
+  # The first two m/z have only incomplete left-hand neighbors and are calculated separately by the Python version.
   selectivities <- c(
     selectivity_from_ppm(ppm_distances[[1L]]) *
       selectivity_from_ppm(ppm_distances[[1L]] + ppm_distances[[2L]]),
@@ -98,7 +98,7 @@ calculate_selectivity <- function(sorted_mz_list, std_ppm = 5) {
       selectivity_from_ppm(ppm_distances[[2L]] + ppm_distances[[3L]])
   )
 
-  # 中间的 m/z 同时考虑两个较低和两个较高的邻居。
+  # The middle m/z considers both the two lower and the two upper neighbors.
   if (mz_count > 4L) {
     for (ii in 3:(mz_count - 2L)) {
       selectivities <- c(
@@ -115,7 +115,7 @@ calculate_selectivity <- function(sorted_mz_list, std_ppm = 5) {
     }
   }
 
-  # 最后两个 m/z 只有不完整的右侧邻居，按 Python 版单独计算。
+  # The last two m/z have only incomplete right-hand neighbors and are calculated separately by the Python version.
   distance_count <- length(ppm_distances)
   selectivities <- c(
     selectivities,
@@ -135,11 +135,11 @@ calculate_selectivity <- function(sorted_mz_list, std_ppm = 5) {
   selectivities
 }
 
-# 在两个 m/z 列表之间寻找没有邻近候选冲突的一对一匹配。
+# Finds a one-to-one match between two m/z lists without adjacent candidate conflicts.
 #
-# 函数先保留每个 m/z 的列表来源和原始位置，再合并排序两个列表。
-# 只有来自不同列表、距离小于 ppm 容差，且下一个相邻值不会造成冲突时，
-# 当前两个 m/z 才会被记录为匹配。R 版返回 1-based 原始位置。
+# The function first retains the list source and original position of each m/z, and then merges and sorts the two lists.
+# Only if they are from different lists, the distance is less than the ppm tolerance, and the next adjacent value does not cause a conflict.
+# Only the current two m/z will be recorded as a match. The R version returns 1-based original position.
 mass_paired_mapping <- function(list1, list2, std_ppm = 5) {
   if (!is.numeric(list1) || any(!is.finite(list1)) ||
       !is.numeric(list2) || any(!is.finite(list2))) {
@@ -161,13 +161,13 @@ mass_paired_mapping <- function(list1, list2, std_ppm = 5) {
   list_origin <- c(rep(1L, list1_count), rep(2L, list2_count))
   original_index <- c(seq_along(list1), seq_along(list2))
 
-  # Python tuple 的排序依次使用 m/z、列表来源和原始索引。
+  # Python tuples are sorted using m/z, list source, and raw index in order.
   sorted_order <- order(combined_mz, list_origin, original_index)
   combined_mz <- combined_mz[sorted_order]
   list_origin <- list_origin[sorted_order]
   original_index <- original_index[sorted_order]
 
-  # 追加与 Python 版一致的哨兵值，使最后一个真实元素也能检查下一个距离。
+  # Appends a sentinel value consistent with the Python version so that the last real element is also checked for the next distance.
   combined_mz <- c(combined_mz, 999999)
   list_origin <- c(list_origin, 2L)
   original_index <- c(original_index, NA_integer_)
@@ -202,11 +202,11 @@ mass_paired_mapping <- function(list1, list2, std_ppm = 5) {
   list(mapped = mapped, ratio_deltas = ratio_deltas)
 }
 
-# 在两个 m/z 列表之间尽可能完成一对一匹配。
+# Complete a one-to-one match between two m/z lists whenever possible.
 #
-# 函数先收集来自不同列表且距离小于 ppm 容差的相邻候选对。
-# 如果同一个 m/z 出现多个候选，保留绝对 m/z 距离最小的一对。
-# 返回成功匹配的 1-based 原始位置，以及两个列表各自未匹配的位置。
+# The function first collects adjacent candidate pairs from different lists that are closer than the ppm tolerance.
+# If multiple candidates appear for the same m/z, the pair with the smallest absolute m/z distance is retained.
+# Returns the 1-based original position of a successful match, as well as the unmatched positions of each of the two lists.
 complete_mass_paired_mapping <- function(list1, list2, std_ppm = 5) {
   if (!is.numeric(list1) || any(!is.finite(list1)) ||
       !is.numeric(list2) || any(!is.finite(list2))) {
@@ -226,7 +226,7 @@ complete_mass_paired_mapping <- function(list1, list2, std_ppm = 5) {
     list_origin <- c(rep(1L, list1_count), rep(2L, list2_count))
     original_index <- c(seq_along(list1), seq_along(list2))
 
-    # Python tuple 的排序依次使用 m/z、列表来源和原始索引。
+    # Python tuples are sorted using m/z, list source, and raw index in order.
     sorted_order <- order(combined_mz, list_origin, original_index)
     combined_mz <- combined_mz[sorted_order]
     list_origin <- list_origin[sorted_order]
@@ -256,7 +256,7 @@ complete_mass_paired_mapping <- function(list1, list2, std_ppm = 5) {
     }
   }
 
-  # 按 Python 版的顺序化冲突处理：共享任一原始索引时，距离更小者获胜。
+  # Python's version of sequential conflict handling: when either original index is shared, the one with the smaller distance wins.
   selected <- list()
   if (length(candidates) > 0L) {
     staged <- candidates[[1L]]
@@ -307,10 +307,10 @@ complete_mass_paired_mapping <- function(list1, list2, std_ppm = 5) {
   )
 }
 
-# 返回查询 m/z 在 Centurion 索引中 ppm 容差内的全部候选。
+# Returns all candidates for query m/z within ppm tolerance in the Centurion index.
 #
-# 这是 all_mass_paired_mapping() 的内部搜索辅助函数。索引以
-# floor(m/z * 100) 作为桶，查询时检查当前桶及左右相邻桶。
+# This is an internal search helper function for all_mass_paired_mapping(). Indexed with
+# floor(m/z * 100) is used as a bucket. When querying, check the current bucket and the left and right adjacent buckets.
 .find_all_mzmatches_centurion_indexed_list <- function(
     query_mz,
     mz_centurion_tree,
@@ -335,7 +335,7 @@ complete_mass_paired_mapping <- function(list1, list2, std_ppm = 5) {
   results
 }
 
-# 保留Python单下划线原名；R内部点前缀版仅是早期移植别名。
+# The original Python single-underscore name is retained; the R internal dot-prefixed version is only an early porting alias.
 `_find_all_mzmatches_centurion_indexed_list` <- function(
     query_mz, mz_centurion_tree, limit_ppm = 5) {
   .find_all_mzmatches_centurion_indexed_list(
@@ -343,11 +343,11 @@ complete_mass_paired_mapping <- function(list1, list2, std_ppm = 5) {
   )
 }
 
-# 返回两个 m/z 列表之间 ppm 容差内的全部候选配对。
+# Returns all candidate pairs within ppm tolerance between two m/z lists.
 #
-# 与前两个配对函数不同，这里不强制一对一，也不在多个候选中只选最近值。
-# 一个 list1 m/z 可以对应多个 list2 m/z，反之亦然。函数返回全部
-# 1-based 配对位置，以及两个列表中完全没有参与匹配的位置。
+# Unlike the first two pairing functions, here we do not enforce one-to-one matching, nor do we select only the closest value among multiple candidates.
+# A list1 m/z can correspond to multiple list2 m/z, and vice versa. function returns all
+# 1-based matching positions, and positions in both lists that are not involved in matching at all.
 all_mass_paired_mapping <- function(list1, list2, std_ppm = 5) {
   if (!is.numeric(list1) || any(!is.finite(list1)) ||
       !is.numeric(list2) || any(!is.finite(list2))) {
@@ -357,7 +357,7 @@ all_mass_paired_mapping <- function(list1, list2, std_ppm = 5) {
     stop("std_ppm must be one finite, non-negative number.", call. = FALSE)
   }
 
-  # 构建与 mass2chem build_centurion_tree_mzlist() 相同概念的百分之一 m/z 索引。
+  # Builds a centurion m/z index of the same concept as mass2chem build_centurion_tree_mzlist().
   mz_centurion_tree <- list()
   for (ii in seq_along(list1)) {
     bucket_key <- as.character(as.integer(list1[[ii]] * 100))
@@ -398,12 +398,12 @@ all_mass_paired_mapping <- function(list1, list2, std_ppm = 5) {
   )
 }
 
-# 在可靠 m/z 配对的基础上估计 list2 的整体质量偏移，必要时校正后重新配对。
+# Estimate the overall mass offset of list2 based on reliable m/z matching, correct and re-pair if necessary.
 #
-# 函数先调用 mass_paired_mapping() 获得高可信配对及其相对偏移，
-# 再以平均相对偏移作为 list2 的校正比例。为与 Python 原版完全对齐，
-# 只有正方向偏移严格大于 correction_tolerance_ppm 时才执行校正；
-# 负方向偏移不触发校正。返回 R 1-based 配对和校正前估计的偏移比例。
+# The function first calls mass_paired_mapping() to obtain high-confidence pairings and their relative offsets.
+# Then use the average relative offset as the correction ratio of list2. To fully align with the original Python,
+# Correction is performed only when the positive offset is strictly greater than correction_tolerance_ppm;
+# Negative offsets do not trigger corrections. Returns R 1-based estimated offset ratio before pairing and correction.
 mass_paired_mapping_with_correction <- function(
     list1,
     list2,
@@ -441,12 +441,12 @@ mass_paired_mapping_with_correction <- function(
   list(mapped = mapped, correction_ratio = correction_ratio)
 }
 
-# 以高可信 landmark m/z 为锚点，将一个新样本的 m/z 列表加入当前参考列表。
+# Using the high-confidence landmark m/z as the anchor point, add the m/z list of a new sample to the current reference list.
 #
-# 函数先对齐参考和新样本的 landmarks，在高可信配对数量足够时估计整体
-# m/z 偏移，并在正或负偏移绝对值超过阈值时校正新样本。随后对齐剩余 m/z，
-# 用配对两端的平均值更新参考 m/z，并把新样本中未配对的 m/z 追加为新参考行。
-# R 版使用 1-based landmark 和映射位置，用 NA_integer_ 表示 Python 中的 None。
+# The function first aligns the landmarks of the reference and new samples, and estimates the overall number when the number of high-confidence pairs is sufficient.
+# m/z offset and correct new samples when the absolute value of a positive or negative offset exceeds a threshold. Then align the remaining m/z,
+# Update the reference m/z with the average of the paired ends and append the unpaired m/z in the new sample as a new reference row.
+# The R version uses 1-based landmarks and mapped locations, using NA_integer_ to represent None in Python.
 landmark_guided_mapping <- function(
     REF_reference_mzlist,
     REF_landmarks,
@@ -499,7 +499,7 @@ landmark_guided_mapping <- function(
   new_reference_map2 <- rep(NA_integer_, original_reference_count)
   correction_ratio <- NULL
 
-  # 第一步：只使用高可信 landmarks 估计样本间 m/z 偏移。
+  # Step one: estimate the m/z shift between samples using only high-confidence landmarks.
   reference_anchors <- REF_reference_mzlist[REF_landmarks]
   sample_anchors <- SM_mzlist[SM_landmarks]
   anchor_result <- mass_paired_mapping(
@@ -524,7 +524,7 @@ landmark_guided_mapping <- function(
     }
   }
 
-  # 将 landmark 子列表中的位置还原为完整 m/z 列表位置。
+  # Restore positions in the landmark sublist to full m/z list positions.
   mapped <- lapply(
     anchor_mapping,
     function(pair) {
@@ -542,7 +542,7 @@ landmark_guided_mapping <- function(
     vapply(mapped, `[[`, integer(1), 2L)
   }
 
-  # 第二步：在排除 landmark 配对后，尽可能配对剩余 m/z。
+  # Step 2: After excluding landmark matching, match the remaining m/z as much as possible.
   remaining_reference <- setdiff(
     seq_along(REF_reference_mzlist),
     mapped_reference
@@ -573,7 +573,7 @@ landmark_guided_mapping <- function(
     )
   )
 
-  # 成功配对时，记录新样本位置，并用配对两端的平均值更新参考 m/z。
+  # On successful pairing, the new sample position is recorded and the reference m/z is updated with the average of both ends of the pair.
   for (pair in mapped_pairs) {
     new_reference_map2[[pair[[1L]]]] <- pair[[2L]]
     REF_reference_mzlist[[pair[[1L]]]] <- 0.5 * (
@@ -581,7 +581,7 @@ landmark_guided_mapping <- function(
     )
   }
 
-  # 新样本中没有参考配对的 m/z 追加为 MassGrid 的新参考行。
+  # m/z that do not have a reference pair in the new sample are appended as new reference rows to the MassGrid.
   for (ii in seq_along(sample_unmatched)) {
     sample_index <- sample_unmatched[[ii]]
     new_reference_map2 <- c(new_reference_map2, sample_index)
@@ -604,10 +604,10 @@ landmark_guided_mapping <- function(
   )
 }
 
-# 按当前分箱中位数和用户提供的容差函数，将已排序的 (value, object) 分成连续箱。
+# Divides sorted (value, object) into consecutive bins by the current bin median and a user-supplied tolerance function.
 #
-# 每个新 value 都与当前最后一箱的 value 中位数比较。距离严格小于
-# func_tolerance(value) 时放入当前箱，否则开始新箱。返回时只保留每个 tuple 的 object。
+# Each new value is compared to the median value of the current last bin. The distance is strictly less than
+# func_tolerance(value) is put into the current bin, otherwise a new bin is started. Only the object of each tuple is retained when returning.
 bin_by_median <- function(List_of_tuples, func_tolerance) {
   if (!is.list(List_of_tuples) || length(List_of_tuples) == 0L) {
     stop("List_of_tuples must be a non-empty list.", call. = FALSE)
@@ -642,10 +642,10 @@ bin_by_median <- function(List_of_tuples, func_tolerance) {
   )
 }
 
-# Python模块有自己的命名空间；此别名防止tools/merge.R的同名函数在R扁平空间中掩盖归属。
+# Python modules have their own namespace; this alias prevents functions of the same name in tools/merge.R from being obscured in the R flat space.
 mass_functions_bin_by_median <- bin_by_median
 
-# 对应 gap_divide_mz_cluster 内部 __divide_by_largest_gap__。
+# Corresponds to gap_divide_mz_cluster internal __divide_by_largest_gap__.
 `__divide_by_largest_gap__` <- function(tuple_list) {
   mzs <- vapply(tuple_list, function(tuple) tuple[[1L]], numeric(1))
   split_position <- which.max(diff(mzs)) + 1L
@@ -655,10 +655,10 @@ mass_functions_bin_by_median <- bin_by_median
   )
 }
 
-# 在已排序 m/z tuple 中找到最大相邻间隔，并从该位置将数据分成左右两组。
+# Find the largest adjacent gap in the sorted m/z tuple and split the data into two left and right groups from that position.
 #
-# mz_tolerance 参数与 Python 原版一样保留在函数接口中，但当前算法并不使用它。
-# 如果有多个相同的最大间隔，与 numpy.argmax() 一样选择第一个。
+# The mz_tolerance parameter remains in the function interface as in vanilla Python, but the current algorithm does not use it.
+# If there are multiple identical maximum intervals, the first one is selected as in numpy.argmax().
 gap_divide_mz_cluster <- function(bin_data_tuples, mz_tolerance) {
   if (!is.list(bin_data_tuples) || length(bin_data_tuples) < 2L) {
     stop("bin_data_tuples must contain at least two tuples.", call. = FALSE)
@@ -670,10 +670,10 @@ gap_divide_mz_cluster <- function(bin_data_tuples, mz_tolerance) {
   `__divide_by_largest_gap__`(bin_data_tuples)
 }
 
-# 用最近边界扩展复制 SciPy uniform_filter1d(size, mode="nearest") 的一维均值滤波。
+# Replicate the one-dimensional mean filtering of SciPy uniform_filter1d(size, mode="nearest") with nearest boundary extension.
 #
-# asari 向 SciPy 传入整数计数，SciPy 会保留整数 dtype 并截断小数部分；
-# 这里显式使用 as.integer() 保留该行为。偶数窗口向左多取一个位置。
+# asari passes an integer count to SciPy, SciPy will retain the integer dtype and truncate the decimal part;
+# Explicit use of as.integer() here preserves that behavior. Even-numbered windows take one more position to the left.
 .uniform_filter1d_nearest_integer <- function(values, size) {
   if (length(values) == 0L || length(size) != 1L || size < 1L) {
     stop("values must be non-empty and size must be positive.", call. = FALSE)
@@ -695,10 +695,10 @@ gap_divide_mz_cluster <- function(bin_data_tuples, mz_tolerance) {
   as.integer(window_sums / size)
 }
 
-# 复制 scipy.signal.find_peaks(values, distance=...) 在 asari 所用参数下的峰位置选择。
+# Copy scipy.signal.find_peaks(values, distance=...) for peak position selection under the parameters used by asari.
 #
-# 端点不作为峰；平顶峰返回中点并向下取整。峰距离冲突时先保留较高峰，
-# 等高时按 SciPy 的顺序先处理较右侧峰，最后将保留位置按升序返回。
+# Endpoints are not considered peaks; flat peaks are returned to the midpoint and rounded down. When peak distances conflict, the higher peak is retained first.
+# When the heights are equal, the peaks on the right side are processed first in SciPy order, and finally the retained positions are returned in ascending order.
 .find_peaks_with_distance <- function(values, distance) {
   if (length(distance) != 1L || !is.finite(distance) || distance < 1) {
     stop("distance must be at least 1.", call. = FALSE)
@@ -745,10 +745,10 @@ gap_divide_mz_cluster <- function(bin_data_tuples, mz_tolerance) {
   sort(kept)
 }
 
-# 将 m/z tuple 投影到万分之一 m/z 整数网格，并识别可作为聚类 seeds 的质量峰。
+# Project the m/z tuple to a 1/10000 m/z integer grid and identify mass peak that can serve as clustering seeds.
 #
-# 函数逐步复制 Python 原版：m/z 乘 10000 后截断为整数、计算每个网格的频数、
-# 使用 nearest 模式整数均值滤波，再按 tol4 最小距离找峰。返回值按 0.0001 m/z 还原。
+# The function gradually replicates the original Python version: multiply m/z by 10000 and then truncate it to an integer, calculate the frequency of each grid,
+# Use nearest mode integer mean filtering, and then use tol4 minimum distance to find peaks. Return values are restored to 0.0001 m/z.
 identify_mass_peaks <- function(
     bin_data_tuples,
     mz_tolerance,
@@ -792,10 +792,10 @@ identify_mass_peaks <- function(
   0.0001 * positioned[peak_indices]
 }
 
-# 根据 identify_mass_peaks() 识别的 m/z seeds，将每个 tuple 分配给距离最近的 seed。
+# Assign each tuple to the nearest seed based on the m/z seeds identified by identify_mass_peaks().
 #
-# 距离相同时选择位置更靠前的 seed，各聚类内保留原 tuple 顺序。
-# 如果没有识别到 seed，与 Python 原版一样改用 gap_divide_mz_cluster() 在最大 m/z 间隔处分成两组。
+# When distances are tied, select the earlier seed and preserve the original tuple order within each cluster.
+# If the seed is not recognized, use gap_divide_mz_cluster() instead to divide into two groups at the maximum m/z separation as in the Python original.
 nn_cluster_by_mz_seeds <- function(
     bin_data_tuples,
     mz_tolerance,

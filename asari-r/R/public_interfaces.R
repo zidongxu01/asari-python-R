@@ -1,6 +1,6 @@
-# 面向普通用户的项目页面、交互式向导、命令行和RAW转换入口。
+# Public entry points for project pages, the interactive assistant, the command line, and RAW conversion.
 
-# 转义将要写入HTML的文本，避免样本名或路径破坏页面。
+# Escape text to be written to HTML to avoid sample names or paths from breaking the page.
 .asari_html_escape <- function(value) {
   value <- gsub("&", "&amp;", as.character(value), fixed = TRUE)
   value <- gsub("<", "&lt;", value, fixed = TRUE)
@@ -9,7 +9,7 @@
   gsub("'", "&#39;", value, fixed = TRUE)
 }
 
-# 把有限行特征表转为可搜索HTML表格。
+# Convert limited row feature table into a searchable HTML table.
 .asari_dashboard_table <- function(table, max_rows) {
   shown <- utils::head(table, max_rows)
   headers <- paste0("<th>", .asari_html_escape(names(shown)), "</th>", collapse = "")
@@ -26,7 +26,7 @@
   )
 }
 
-# 生成一张不依赖外部JavaScript库的m/z-RT散点SVG。
+# Generate an m/z-RT scatter SVG that does not rely on external JavaScript libraries.
 .asari_dashboard_scatter <- function(table, max_points = 3000L) {
   if (!all(c("mz", "rtime") %in% names(table)) || nrow(table) == 0L) {
     return("<p class='empty'>No m/z and retention-time data are available.</p>")
@@ -59,17 +59,17 @@
   )
 }
 
-#' 为asariR项目生成自包含的可视化页面
+#' Generate self-contained visualization pages for asariR projects
 #'
-#' 该页面直接读取`project.json`和特征表，不要求Python pickle、
-#' Shiny或外部Web服务。
+#' This page directly reads `project.json` and feature table, and does not require Python pickle or
+#' Shiny or external web service.
 #'
-#' @param project 项目目录或[asari_process()]返回的结果。
-#' @param table `"preferred"`或`"full"`。
-#' @param output 可选HTML输出路径；默认写入项目目录。
-#' @param open 是否生成后使用默认浏览器打开。
-#' @param max_rows HTML表格最多写入的特征行数。
-#' @return 生成的HTML绝对路径。
+#' @param project The project directory or the result returned by [asari_process()].
+#' @param table `"preferred"` or `"full"`.
+#' @param output Optional HTML output path; defaults to writing to the project directory.
+#' @param open Whether to use the default browser to open after generation.
+#' @param max_rows The maximum number of feature rows written in an HTML table.
+#' @return Generated HTML absolute path.
 #' @export
 asari_dashboard <- function(
     project,
@@ -97,7 +97,7 @@ asari_dashboard <- function(
     paste0("<article><strong>", .asari_html_escape(mz_range), "</strong><span>m/z range</span></article>"),
     paste0("<article><strong>", .asari_html_escape(rt_range), "</strong><span>RT range</span></article>")
   )
-  # 所有CSS和JavaScript直接写入文件，离线打开也能搜索。
+  # All CSS and JavaScript are written directly to the file and can be searched even when opened offline.
   html <- c(
     "<!doctype html><html lang='en'><head><meta charset='utf-8'>",
     "<meta name='viewport' content='width=device-width,initial-scale=1'>",
@@ -119,18 +119,18 @@ asari_dashboard <- function(
   outfile
 }
 
-#' 使用交互式向导准备或运行asariR
+#' Prepare or run asariR using the interactive wizard
 #'
-#' @param input 明硤的mzML文件或目录；交互会话中为`NULL`时会询问。
-#' @param output 输出根目录。
-#' @param project_name 项目名。
-#' @param mode `"pos"`或`"neg"`。
-#' @param workflow `"LC"`、`"GC"`或`"DIMS"`。
-#' @param ppm m/z容差。
-#' @param multicores 使用的CPU核数。
-#' @param run `TRUE`直接运行；`FALSE`只返回将要使用的配置。
-#' @param parameters 其他高级参数。
-#' @return `run = TRUE`时返回处理结果，否则返回配置list。
+#' @param input Explicit mzML file or directory; requested interactively when `NULL`.
+#' @param output Output root directory.
+#' @param project_name Project name.
+#' @param mode `"pos"` or `"neg"`.
+#' @param workflow `"LC"`, `"GC"` or `"DIMS"`.
+#' @param ppm m/z tolerance.
+#' @param multicores Number of CPU cores used.
+#' @param run `TRUE` runs directly; `FALSE` only returns the configuration to be used.
+#' @param parameters Other advanced parameters.
+#' @return The processing result is returned when `run = TRUE`, otherwise the configuration list is returned.
 #' @export
 asari_gui <- function(
     input = NULL,
@@ -142,7 +142,7 @@ asari_gui <- function(
     multicores = 1L,
     run = TRUE,
     parameters = list()) {
-  # 基础R的交互式向导可在RStudio和Terminal工作，不强制安装Shiny。
+  # The interactive wizard for basic R can work in RStudio and Terminal, and does not force installation of Shiny.
   if (is.null(input)) {
     if (!interactive()) stop("input is required outside an interactive R session.", call. = FALSE)
     input <- readline("mzML file or directory: ")
@@ -170,7 +170,7 @@ asari_gui <- function(
   )
 }
 
-# 打印一份简短命令行帮助，避免用户必须查找长文档。
+# Prints a short copy of the command line help to avoid users having to find long documentation.
 .asari_cli_help <- function() {
   cat(paste0(
     "asariR commands:\n",
@@ -187,10 +187,10 @@ asari_gui <- function(
   invisible(NULL)
 }
 
-#' 运行asariR命令行入口
+#' Run the asariR command line entry
 #'
-#' @param argv 命令行参数字符向量。
-#' @return 子命令的结果，不可见返回。
+#' @param argv Character vector of command line arguments.
+#' @return The result of the subcommand is returned invisible.
 #' @export
 asari_cli <- function(argv = commandArgs(trailingOnly = TRUE)) {
   if (length(argv) == 0L || any(argv %in% c("-h", "--help"))) {
@@ -258,23 +258,23 @@ asari_cli <- function(argv = commandArgs(trailingOnly = TRUE)) {
   invisible(result)
 }
 
-#' 安装Thermo RAW到mzML转换器
+#' Install Thermo RAW to mzML converter
 #'
-#' @param version ThermoRawFileParser版本。
-#' @return 转换器安装目录。
+#' @param version ThermoRawFileParser version.
+#' @return Converter installation directory.
 #' @export
 asari_install_raw_converter <- function(version = "1.4.5") {
   mzMLconverter_install_converter(version)
 }
 
-#' 把Thermo RAW文件批量转换为mzML
+#' Batch convert Thermo RAW files to mzML
 #'
-#' @param input 一个或多个明硤RAW文件路径。
-#' @param output_dir 输出目录；`NULL`时各自写入RAW所在目录。
-#' @param version ThermoRawFileParser版本。
-#' @param multicores 并行任务数。
-#' @param dry_run `TRUE`只返回将执行的命令，不运行转换。
-#' @return 转换命令和预期输出路径。
+#' @param input One or more explicit RAW file paths.
+#' @param output_dir Output directory; `NULL` is written to the directory where RAW is located.
+#' @param version ThermoRawFileParser version.
+#' @param multicores Number of parallel tasks.
+#' @param dry_run `TRUE` only returns the command to be executed and does not run the conversion.
+#' @return Conversion command and expected output path.
 #' @export
 asari_convert_raw <- function(
     input,
@@ -295,7 +295,7 @@ asari_convert_raw <- function(
     if (!dir.exists(output_dir)) stop("Unable to create output directory: ", output_dir)
     output_dir <- normalizePath(output_dir, mustWork = TRUE)
   }
-  # dry_run不触发网络下载；它只能使用已经安装的转换器。
+  # dry_run does not trigger network downloads; it can only use installed converters.
   if (isTRUE(dry_run)) {
     root <- getOption("asariR.converter_dir", tools::R_user_dir("asariR", "data"))
     installed <- file.path(root, paste0("ThermoRawFileParser", version))
@@ -330,10 +330,10 @@ asari_convert_raw <- function(
   list(commands = commands, output_files = outputs, dry_run = isTRUE(dry_run))
 }
 
-#' 卸载指定版本的Thermo RAW转换器
+#' Uninstall the specified version of Thermo RAW converter
 #'
 #' @inheritParams asari_install_raw_converter
-#' @return 不可见的`NULL`。
+#' @return Invisible `NULL`.
 #' @export
 asari_uninstall_raw_converter <- function(version = "1.4.5") {
   mzMLconverter_uninstall_converter(version)

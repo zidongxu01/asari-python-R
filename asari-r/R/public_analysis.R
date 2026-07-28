@@ -1,6 +1,6 @@
-# 面向普通用户的合并、GC特征图和绘图入口。
+# Public entry points for table merging, GC feature graphs, and plotting.
 
-# 从标准asari特征表中识别样本强度列。
+# Identify the sample intensity column from the standard asari feature table.
 .asari_sample_columns <- function(table) {
   metadata <- c(
     "id_number", "mz", "rtime", "rtime_left_base", "rtime_right_base",
@@ -10,7 +10,7 @@
   setdiff(names(table), metadata)
 }
 
-# 为一个新特征在当前共识组中找到最近且可用的组。
+# Find the nearest available group within the current consensus group for a new feature.
 .asari_merge_candidate <- function(clusters, mz, rtime, table_index, ppm, rt_tolerance) {
   if (length(clusters) == 0L) return(NA_integer_)
   centers_mz <- vapply(clusters, function(cluster) stats::median(cluster$mz), 0)
@@ -36,18 +36,18 @@
   candidates[[which.min(distance)]]
 }
 
-#' 合并多张asari特征表
+#' Merge multiple asari feature tables
 #'
-#' `method = "standard"`直接合并普通asari表；`method = "legacy"`
-#' 调用Python `tools/merge.py`对应的旧式formula-mass表合并器。
+#' `method = "standard"` directly merges ordinary asari tables; `method = "legacy"`
+#' Call the old formula-mass table combiner corresponding to Python `tools/merge.py`.
 #'
-#' @param feature_tables 两个或更多明硤TSV路径。
-#' @param output 明硤的合并TSV输出路径。
-#' @param ppm m/z容差。
-#' @param rt_tolerance RT容差，单位为秒。
-#' @param method 标准asari表或旧式formula-mass表。
-#' @param make_feature_id 仅传给旧式合并器。
-#' @return `standard`返回合并data.frame；`legacy`返回输出路径。
+#' @param feature_tables Two or more explicit TSV paths.
+#' @param output Explicit output path for the merged TSV file.
+#' @param ppm m/z tolerance.
+#' @param rt_tolerance RT tolerance, unit is seconds.
+#' @param method Standard asari tables or old formula-mass tables.
+#' @param make_feature_id Passed to legacy combiners only.
+#' @return `standard` returns the merged data.frame; `legacy` returns the output path.
 #' @export
 asari_merge_feature_tables <- function(
     feature_tables,
@@ -83,7 +83,7 @@ asari_merge_feature_tables <- function(
     }
   }
 
-  # 按输入表顺序将特征加入共识组，每张表在一组中最多占一行。
+  # Features are added to the consensus group in the order of the input tables, with each table occupying at most one row in a group.
   clusters <- list()
   for (table_index in seq_along(tables)) {
     table <- tables[[table_index]]
@@ -113,7 +113,7 @@ asari_merge_feature_tables <- function(
     vapply(clusters, function(cluster) stats::median(cluster$rtime), 0)
   )]
 
-  # 所有样本列加上来源表前缀，避免不同项目使用相同样本名时覆盖。
+  # All sample columns are prefixed with the source table to avoid overwriting when different projects use the same sample name.
   table_labels <- make.unique(tools::file_path_sans_ext(basename(paths)))
   sample_names <- unlist(lapply(seq_along(tables), function(ii) {
     paste0(table_labels[[ii]], "::", .asari_sample_columns(tables[[ii]]))
@@ -149,7 +149,7 @@ asari_merge_feature_tables <- function(
     consensus_id = character(), mz = numeric(), rtime = numeric(),
     detection_tables = integer(), source_ids = character()
   )
-  # rbind会将混合list转为文本，这里恢复共识数值列。
+  # rbind will convert the mixed list into text, and restore the consensus numerical column here.
   for (name in c("mz", "rtime", "detection_tables", sample_names)) {
     if (name %in% names(result)) result[[name]] <- suppressWarnings(as.numeric(result[[name]]))
   }
@@ -158,12 +158,12 @@ asari_merge_feature_tables <- function(
   result
 }
 
-#' 按共洗脱关系构建GC特征图
+#' Construct GC feature graph according to co-elution relationship
 #'
-#' @param feature_table 明硤的asari特征表TSV。
-#' @param rt_tolerance 构建边的RT容差。
-#' @param output 可选的特征-簇TSV输出路径。
-#' @return 每行一个特征和其谱簇ID的data.frame。
+#' @param feature_table an explicit asari feature table TSV.
+#' @param rt_tolerance Build the RT tolerance for edges.
+#' @param output Optional feature - Cluster TSV output path.
+#' @return A data.frame with one feature per row and its cluster ID.
 #' @export
 asari_feature_graph <- function(feature_table, rt_tolerance = 0.5, output = NULL) {
   path <- path.expand(feature_table)
@@ -187,13 +187,13 @@ asari_feature_graph <- function(feature_table, rt_tolerance = 0.5, output = NULL
   result
 }
 
-#' 绘制两张谱图的镜像图
+#' Draw a mirror image of two spectra
 #'
-#' @param query,reference 两列`m/z, intensity` matrix或data.frame。
-#' @param output 明硤的PDF输出路径。
-#' @param tolerance 可选的碎片m/z匹配容差Da。
-#' @param title 图标题。
-#' @return PDF绝对路径。
+#' @param query,reference Two columns of `m/z, intensity` matrix or data.frame.
+#' @param output explicit PDF output path.
+#' @param tolerance Optional fragment m/z matching tolerance Da.
+#' @param title Figure title.
+#' @return PDF absolute path.
 #' @export
 asari_mirror_plot <- function(query, reference, output, tolerance = NULL, title = "MS Mirror Plot") {
   outfile <- .asari_public_output_file(output)
@@ -204,15 +204,15 @@ asari_mirror_plot <- function(query, reference, output, tolerance = NULL, title 
   normalizePath(outfile, mustWork = TRUE)
 }
 
-#' 绘制mzML指定扫描号和m/z区域
+#' Draw mzML specifying scan number and m/z area
 #'
-#' @param input 一个明硤mzML文件。
-#' @param output 明硤PDF输出路径。
-#' @param scan_range 长度为2的扫描号开区间。
-#' @param mz_range 长度为2的m/z开区间。
-#' @param ms_level 质谱级别。
-#' @param style `"scatter"`、`"double"`或`"line"`。
-#' @return PDF绝对路径。
+#' @param input An explicit mzML file.
+#' @param output explicit PDF output path.
+#' @param scan_range scan number open interval with length 2.
+#' @param mz_range m/z open interval of length 2.
+#' @param ms_level mass spectrum level.
+#' @param style `"scatter"`, `"double"` or `"line"`.
+#' @return PDF absolute path.
 #' @export
 asari_plot_mz_region <- function(
     input,
@@ -245,11 +245,11 @@ asari_plot_mz_region <- function(
   normalizePath(outfile, mustWork = TRUE)
 }
 
-#' 对特征表样本强度执行PCA并绘图
+#' Perform PCA on feature table sample intensity and plot
 #'
-#' @param feature_table 明硤的asari特征表TSV。
-#' @param output 可选PDF输出路径；`NULL`使用当前绘图设备。
-#' @return 样本的PC1和PC2坐标matrix。
+#' @param feature_table an explicit asari feature table TSV.
+#' @param output Optional PDF output path; `NULL` uses the current drawing device.
+#' @return PC1 and PC2 coordinate matrix of the sample.
 #' @export
 asari_pca <- function(feature_table, output = NULL) {
   path <- path.expand(feature_table)
@@ -269,11 +269,11 @@ asari_pca <- function(feature_table, output = NULL) {
   scores
 }
 
-#' 绘制样本汇总强度与peak_area的相关图
+#' Plot sample summary intensity versus peak_area
 #'
-#' @param feature_table 明硤的asari特征表TSV。
-#' @param output 明硤PDF输出路径。
-#' @return PDF绝对路径。
+#' @param feature_table an explicit asari feature table TSV.
+#' @param output explicit PDF output path.
+#' @return PDF absolute path.
 #' @export
 asari_plot_correlations <- function(feature_table, output) {
   path <- path.expand(feature_table)

@@ -1,4 +1,4 @@
-# experiment.py 的 20 个 def 必须逐一存在明确的 R 对应函数。
+# Each of the 20 defs in experiment.py must have a clear R corresponding function.
 test_that("all 20 Python experiment defs have explicit R counterparts", {
   expected_functions <- c(
     "ext_Experiment__init__",
@@ -29,7 +29,7 @@ test_that("all 20 Python experiment defs have explicit R counterparts", {
   }, logical(1))))
 })
 
-# 生成 experiment 测试使用的完整参数，避免依赖尚未扩充的默认参数占位文件。
+# Generate complete parameters used by experiment tests to avoid relying on default parameter placeholder files that have not been expanded.
 make_experiment_parameters <- function(outdir = tempfile("experiment_out_"),
                                        reference = NULL,
                                        workflow = "LC") {
@@ -67,7 +67,7 @@ make_experiment_parameters <- function(outdir = tempfile("experiment_out_"),
   )
 }
 
-# 创建 Python workflow.register_samples 风格的两个样本登记项。
+# Create two sample registration entries in the Python workflow.register_samples style.
 make_experiment_registry <- function() {
   make_one <- function(id, name, anchors, status = "passed", time = NULL) {
     mz_offset <- id * 0.0001
@@ -100,12 +100,12 @@ make_experiment_registry <- function() {
   list(
     `0` = make_one(0L, "sample_a", 2L, time = "2024-01-02"),
     `1` = make_one(1L, "sample_b", 5L, time = "2024-01-01"),
-    # 提取失败的 Python registry 通常没有 anchor 数，因此不参与参考样本候选。
+    # The Python registry that fails to extract usually does not have an anchor number, so it does not participate in reference sample candidates.
     `2` = make_one(2L, "failed", NULL, status = "failed", time = "2024-01-03")
   )
 }
 
-# 构造器应建立正式类身份、有效样本清单、共享样本别名和自动参考样本。
+# The constructor should establish the formal class identity, list of valid samples, shared sample aliases, and automatic reference sample.
 test_that("experiment constructor initializes Python fields and aliases", {
   registry <- make_experiment_registry()
   parameters <- make_experiment_parameters()
@@ -129,7 +129,7 @@ test_that("experiment constructor initializes Python fields and aliases", {
   expect_length(experiment$all_samples, 0L)
 })
 
-# 用户指定参考文件时支持完整文件名及省略 .mzML 的名称。
+# Full file names and names that omit.mzML are supported when users specify reference files.
 test_that("reference selection honors user file names", {
   registry <- make_experiment_registry()
   exact <- ext_Experiment__init__(
@@ -145,7 +145,7 @@ test_that("reference selection honors user file names", {
   expect_equal(without_extension$reference_sample_id, 1L)
 })
 
-# 有效样本、采集顺序和最大 scan 必须与 Python 的筛选和排序规则一致。
+# Valid samples, collection order, and maximum scan must be consistent with Python's filtering and sorting rules.
 test_that("valid IDs acquisition order and max scan follow registry", {
   experiment <- ext_Experiment__init__(
     make_experiment_registry(), make_experiment_parameters()
@@ -168,7 +168,7 @@ test_that("valid IDs acquisition order and max scan follow registry", {
   )
 })
 
-# mock CompositeMap 记录 LC 和 DIMS 主流程调用顺序，同时验证 LCMSMS 空占位。
+# Mock CompositeMap records the calling sequence of LC and DIMS main processes while verifying the LCMSMS empty space.
 test_that("processing methods call CompositeMap stages in Python order", {
   experiment <- ext_Experiment__init__(
     make_experiment_registry(), make_experiment_parameters()
@@ -192,7 +192,7 @@ test_that("processing methods call CompositeMap stages in Python order", {
   expect_null(ext_Experiment_process_all_LCMSMS(experiment))
 })
 
-# 不使用 mock，验证 experiment、samples 和 constructors 能完成真实 DIMS 串联。
+# Without using mocks, verify that experiments, samples, and constructors can complete real DIMS concatenation.
 test_that("real DIMS integration connects samples constructors and experiment", {
   registry <- make_experiment_registry()[c("0", "1")]
   experiment <- ext_Experiment__init__(
@@ -210,7 +210,7 @@ test_that("real DIMS integration connects samples constructors and experiment", 
                   names(experiment$CMAP$FeatureTable)))
 })
 
-# 使用满足 selectivity 前提的真实轨迹完成 LC 质量网格、合成轨迹和峰检测。
+# Complete LC MassGrid, synthetic trajectories and peak detection using real trajectories that satisfy the selectivity premise.
 test_that("real LC integration reaches global feature table", {
   registry <- make_experiment_registry()[c("0", "1")]
   experiment <- ext_Experiment__init__(
@@ -225,7 +225,7 @@ test_that("real LC integration reaches global feature table", {
   expect_true(is.data.frame(experiment$CMAP$FeatureTable))
 })
 
-# 创建 FeatureTable 和样本对象，供表格、日志及 export_all 测试共用。
+# Create FeatureTable and sample objects for use by tables, logs, and export_all tests.
 attach_export_fixture <- function(experiment) {
   sample_a <- new.env(parent = emptyenv())
   sample_a$name <- "sample_a"
@@ -262,7 +262,7 @@ attach_export_fixture <- function(experiment) {
   invisible(experiment)
 }
 
-# full/preferred 表应正确计算 detection count、舍入并按严格阈值过滤。
+# full/preferred tables should correctly calculate detection count, round and filter by strict thresholds.
 test_that("feature table export reproduces filtering and sample dropping", {
   experiment <- ext_Experiment__init__(
     make_experiment_registry(), make_experiment_parameters()
@@ -289,7 +289,7 @@ test_that("feature table export reproduces filtering and sample dropping", {
   expect_equal(experiment$number_of_samples, 1L)
 })
 
-# unique 表在注释模式下插入 empCpd、formula 和 ion relation 三列。
+# The unique table inserts three columns: empCpd, formula and ion relation in annotation mode.
 test_that("unique compound table uses selected representative features", {
   experiment <- ext_Experiment__init__(
     make_experiment_registry(), make_experiment_parameters()
@@ -313,7 +313,7 @@ test_that("unique compound table uses selected representative features", {
   expect_equal(table$ion_relation, "M+H")
 })
 
-# export_log 和 export_readme 写出项目统计与 Python 默认说明。
+# export_log and export_readme write out project statistics and Python default instructions.
 test_that("log and README exports contain project metadata", {
   skip_if_not_installed("jsonlite")
   experiment <- ext_Experiment__init__(
@@ -337,7 +337,7 @@ test_that("log and README exports contain project metadata", {
   expect_match(readme, "preferred_Feature_table.tsv", fixed = TRUE)
 })
 
-# 非注释 LC 和 DIMS 的 export_all 应建立质量网格、特征表和日志文件。
+# export_all for non-annotated LC and DIMS should create MassGrid, feature table and log files.
 test_that("export_all dispatches LC and DIMS outputs", {
   skip_if_not_installed("jsonlite")
   lc <- ext_Experiment__init__(
@@ -362,7 +362,7 @@ test_that("export_all dispatches LC and DIMS outputs", {
   expect_false(file.exists(file.path(dims$parameters$outdir, "README.txt")))
 })
 
-# 数据库估计偏差超过 2 ppm 时，全部 feature m/z 应使用相同比例除法校正。
+# When the database estimate deviates by more than 2 ppm, all feature m/z should be corrected using the same scale division.
 test_that("database mass calibration updates feature mz values", {
   experiment <- ext_Experiment__init__(
     make_experiment_registry(), make_experiment_parameters()
@@ -390,7 +390,7 @@ test_that("database mass calibration updates feature mz values", {
   }, logical(1))))
 })
 
-# 没有数据库匹配时不校正 m/z，且函数只报告跳过。
+# m/z is not corrected when there is no database match, and the function only reports skipping.
 test_that("database mass calibration skips missing matches", {
   experiment <- ext_Experiment__init__(
     make_experiment_registry(), make_experiment_parameters()
@@ -407,7 +407,7 @@ test_that("database mass calibration skips missing matches", {
   )
 })
 
-# 第三阶段注释把 FeatureList 中尚未出现的 peak 包装成孤儿 empCpd。
+# The third stage annotation wraps peaks that have not yet appeared in the FeatureList into orphan empCpd.
 test_that("orphan features are appended as empirical compounds", {
   experiment <- ext_Experiment__init__(
     make_experiment_registry(), make_experiment_parameters()
@@ -428,7 +428,7 @@ test_that("orphan features are appended as empirical compounds", {
   expect_null(result[["100001"]]$ion_relation)
 })
 
-# 注释 TSV 应包含数据库首选名称、短报告、feature 与 empCpd 字段。
+# Note The TSV should contain the database preferred name, short report, feature and empCpd fields.
 test_that("peak annotation export writes matched database details", {
   experiment <- ext_Experiment__init__(
     make_experiment_registry(), make_experiment_parameters()
@@ -459,7 +459,7 @@ test_that("peak annotation export writes matched database details", {
   expect_match(text, "C6H12O6", fixed = TRUE)
 })
 
-# 每个 empCpd 选择 peak_area、goodness_fitting 最大的峰；singleton 使用固定关系。
+# Each empCpd selects the peak with the largest peak_area and goodness_fitting; singleton uses a fixed relationship.
 test_that("unique feature selection follows peak quality ordering", {
   experiment <- ext_Experiment__init__(
     make_experiment_registry(), make_experiment_parameters()
@@ -487,7 +487,7 @@ test_that("unique feature selection follows peak quality ordering", {
                list(11L, "C2", "singleton"))
 })
 
-# QC 绘图器存在时收到 FeatureTable 和 export 路径；缺失时只提示跳过。
+# The QC plotter receives the FeatureTable and export path if it exists; if it is missing, it only prompts to skip.
 test_that("QC plot callback is optional and receives Python arguments", {
   experiment <- ext_Experiment__init__(
     make_experiment_registry(), make_experiment_parameters()
@@ -511,7 +511,7 @@ test_that("QC plot callback is optional and receives Python arguments", {
   )
 })
 
-# 外部 JMS 数据库通过明确 factory 接入；未提供时应报告缺少适配器。
+# External JMS databases are accessed via an explicit factory; a missing adapter should be reported when not provided.
 test_that("annotation database loader uses configured JMS adapter", {
   experiment <- ext_Experiment__init__(
     make_experiment_registry(), make_experiment_parameters()
@@ -529,7 +529,7 @@ test_that("annotation database loader uses configured JMS adapter", {
   expect_identical(experiment$KCD, marker)
 })
 
-# 完整 annotate 顺序使用 mock JMS 对象，并输出 JSON、pickle 和 annotation TSV。
+# Full annotate sequentially using mock JMS objects and output JSON, pickle and annotation TSV.
 test_that("annotation workflow connects KCD and EED adapters", {
   skip_if_not_installed("jsonlite")
   python <- tryCatch(.samples_find_python(), error = function(error) "")
@@ -570,7 +570,7 @@ test_that("annotation workflow connects KCD and EED adapters", {
   expect_length(experiment$selected_unique_features, 2L)
 })
 
-# CMAP pickle 应能由 samples.R 的 Python pickle 读取器恢复核心字段。
+# CMAP pickle should be able to recover core fields by samples.R's Python pickle reader.
 test_that("CMAP export writes a readable Python pickle", {
   skip_if_not_installed("jsonlite")
   python <- tryCatch(.samples_find_python(), error = function(error) "")

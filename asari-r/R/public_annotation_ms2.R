@@ -1,6 +1,6 @@
-# 面向普通用户的注释和MS2入口：所有输入都必须是明确的对象或文件路径。
+# Public annotation and MS2 entry points: all inputs must be explicit objects or file paths.
 
-# 从一组可能的字段名中找到数据库实际使用的列名。
+# Find the actual column name used by the database from a set of possible field names.
 .asari_annotation_column <- function(table, candidates) {
   actual <- names(table)
   matched <- match(tolower(candidates), tolower(actual), nomatch = 0L)
@@ -8,7 +8,7 @@
   if (length(matched)) actual[[matched[[1L]]]] else NULL
 }
 
-# 安全取出一个list记录中的第一个已知字段。
+# Safely retrieve the first known field in a list record.
 .asari_annotation_value <- function(record, candidates, fallback = NULL) {
   actual <- names(record)
   if (is.null(actual)) return(fallback)
@@ -17,7 +17,7 @@
   if (length(matched)) record[[actual[[matched[[1L]]]]]] else fallback
 }
 
-# 把表格式的LC数据库统一为公开注释函数所需的8列。
+# Unify the tabular LC database into the 8 columns required to expose annotation functions.
 .asari_normalize_lc_table <- function(table) {
   if (!is.data.frame(table)) stop("LC database must be a data.frame or supported file.", call. = FALSE)
   n <- nrow(table)
@@ -42,7 +42,7 @@
     source = get_text(c("source", "primary_db", "database")),
     stringsAsFactors = FALSE
   )
-  # 数据库没有稳定ID时使用可重现的行号，而不是随机值。
+  # Use reproducible row numbers instead of random values when the database does not have stable IDs.
   empty_id <- is.na(result$compound_id) | !nzchar(result$compound_id)
   result$compound_id[empty_id] <- paste0("DB", which(empty_id))
   if (all(is.na(result$mz)) && all(is.na(result$neutral_mass))) {
@@ -51,13 +51,13 @@
   result
 }
 
-# 把asari的mass_indexed_compounds.pickle展平成普通data.frame。
+# Flatten asari's mass_indexed_compounds.pickle into a normal data.frame.
 .asari_flatten_lc_pickle <- function(database) {
   rows <- list()
   counter <- 0L
   for (entry in unname(database)) {
     compounds <- .asari_annotation_value(entry, "compounds", list())
-    # 个别质量记录可能没有compounds，仍保留质量和分子式。
+    # Individual mass records may not have compounds, but still retain masses and formulas.
     if (length(compounds) == 0L) compounds <- list(entry)
     for (compound in compounds) {
       counter <- counter + 1L
@@ -90,15 +90,15 @@
   do.call(rbind, rows)
 }
 
-#' 读取LC-MS注释数据库
+#' Read LC-MS annotation database
 #'
-#' 支持data.frame、TSV、CSV、JSON和asari原始Python pickle。使用
-#' `database = "hmdb4"`时，第一次需要可用的Python解码pickle，
-#' 之后会读取RDS缓存。
+#' Supports data.frame, TSV, CSV, JSON and asari raw Python pickle. Use
+#' When `database = "hmdb4"` is used, an available Python decoding pickle is required for the first time.
+#' The RDS cache will then be read.
 #'
-#' @param database 数据库data.frame、明确文件路径或`"hmdb4"`。
-#' @param cache 是否缓存内置HMDB的R格式副本。
-#' @return 统一字段的data.frame。
+#' @param database Database data.frame, explicit file path or `"hmdb4"`.
+#' @param cache Whether to cache an R-formatted copy of the built-in HMDB.
+#' @return data.frame with unified fields.
 #' @export
 asari_load_lc_database <- function(database = "hmdb4", cache = TRUE) {
   if (is.data.frame(database)) return(.asari_normalize_lc_table(database))
@@ -109,7 +109,7 @@ asari_load_lc_database <- function(database = "hmdb4", cache = TRUE) {
     cache_dir <- tools::R_user_dir("asariR", "cache")
     cache_file <- file.path(cache_dir, "hmdb4_lc_database.rds")
     if (isTRUE(cache) && file.exists(cache_file)) return(readRDS(cache_file))
-    # 仅在用户明确选择hmdb4时查找Python asari数据资源。
+    # Find Python asari data resources only if the user explicitly selects hmdb4.
     raw <- load_asari_db_resource("mass_indexed_compounds.pickle")
     result <- .asari_flatten_lc_pickle(raw)
     if (isTRUE(cache)) {
@@ -136,7 +136,7 @@ asari_load_lc_database <- function(database = "hmdb4", cache = TRUE) {
   if (is.data.frame(raw)) .asari_normalize_lc_table(raw) else .asari_flatten_lc_pickle(raw)
 }
 
-# 为中性质量生成与asari默认规则一致的理论离子列表。
+# Generate a list of theoretical ions for neutral masses consistent with asari's default rules.
 .asari_lc_theoretical_ions <- function(database, mode, include_adducts) {
   records <- list()
   counter <- 0L
@@ -171,20 +171,20 @@ asari_load_lc_database <- function(database = "hmdb4", cache = TRUE) {
   do.call(rbind, records)
 }
 
-#' 使用质量或标准品数据库注释LC-MS特征
+#' Annotate LC-MS features using mass or standards databases
 #'
-#' 这是可独立运行的R原生候选注释：它匹配m/z，数据库提供RT时
-#' 再匹配RT，并可以扩展asari默认加合物。它不声称替代JMS/Khipu
-#' 的经验化合物分组。
+#' This is a candidate annotation native to R that can be run independently: it matches m/z when RT is provided by the database
+#' Then match RT and can extend asari default adduct. It does not claim to replace JMS/Khipu
+#' Empirical compound groupings.
 #'
-#' @param feature_table asari特征表data.frame或明确TSV路径。
-#' @param database 传给[asari_load_lc_database()]的数据库。
-#' @param output 可选的明确TSV输出路径。
-#' @param mode `"pos"`或`"neg"`。
-#' @param ppm m/z容差。
-#' @param rt_tolerance 可选RT容差，单位与输入表一致。
-#' @param include_adducts 对中性质量是否扩展默认加合物。
-#' @return 每行一个特征-候选化合物匹配。
+#' @param feature_table asari feature table data.frame or explicit TSV path.
+#' @param database The database passed to [asari_load_lc_database()].
+#' @param output Optional explicit TSV output path.
+#' @param mode `"pos"` or `"neg"`.
+#' @param ppm m/z tolerance.
+#' @param rt_tolerance Optional RT tolerance, units consistent with input table.
+#' @param include_adducts Whether to extend the default adduct for neutral mass.
+#' @return One feature-candidate compound match per row.
 #' @export
 asari_annotate_lc <- function(
     feature_table,
@@ -206,7 +206,7 @@ asari_annotate_lc <- function(
   ions <- .asari_lc_theoretical_ions(db, mode, include_adducts)
   ions <- ions[order(ions$theoretical_mz), , drop = FALSE]
 
-  # 使用有序质量索引搜索ppm窗口，避免对大型HMDB做全笛卡尔积。
+  # Search ppm windows using ordered mass indexes to avoid full Cartesian products for large HMDBs.
   matches <- list()
   counter <- 0L
   ion_mz <- ions$theoretical_mz
@@ -259,17 +259,17 @@ asari_annotate_lc <- function(
   result
 }
 
-#' 使用Kovats指数和EI谱库注释GC-MS特征表
+#' Annotate GC-MS feature table using Kovats index and EI spectral library
 #'
-#' @param feature_table 明硤的asari完整特征表TSV。
-#' @param kovats 明确的Kovats校准TSV。
-#' @param library 明确的MSP或JSON EI谱库。
-#' @param output_dir 注释输出目录。
-#' @param project_name 输出文件名标识。
-#' @param denovo 是否同时构建de novo伪谱。
-#' @param mirror_plots 是否输出镜像图；需要可用的绘图后端。
-#' @param ... 传给底层GC注释的高级参数。
-#' @return 包含注释输出路径的具名list。
+#' @param feature_table an explicit asari full feature table TSV.
+#' @param kovats Explicit Kovats calibrated TSV.
+#' @param library Explicit MSP or JSON EI spectral library.
+#' @param output_dir Comment output directory.
+#' @param project_name Output filename identifier.
+#' @param denovo Whether to construct de novo pseudo-spectrum at the same time.
+#' @param mirror_plots Whether to output mirrored plots; requires an available drawing backend.
+#' @param... High-level parameters passed to the underlying GC annotation.
+#' @return A named list containing annotation output paths.
 #' @export
 asari_annotate_gc <- function(
     feature_table,
@@ -291,7 +291,7 @@ asari_annotate_gc <- function(
     stop("Unable to create GC annotation directory: ", output_dir, call. = FALSE)
   }
   output_dir <- normalizePath(output_dir, mustWork = TRUE)
-  # 公开入口默认关闭可选镜像图，确保表格和谱图导出不被绘图包阻断。
+  # The optional mirror image is turned off by default in the public portal, ensuring that the export of tables and spectra is not blocked by the drawing package.
   annotate_gcms_full(
     infile = normalized[["feature_table"]], outdir = output_dir,
     KovatsIndex = normalized[["kovats"]], database_file = normalized[["library"]],
@@ -313,13 +313,13 @@ asari_annotate_gc <- function(
   result
 }
 
-#' 从mzML提取MS1、MS2和更高级别谱图
+#' Extract MS1, MS2 and higher level spectra from mzML
 #'
-#' @param input 一个明确的mzML文件。
-#' @param output 可选的JSON输出路径。
-#' @param min_intensity 最低峰强度。
-#' @param ms2_peak_limit 每张MS2谱保留的最大峰数；`NULL`表示不限制。
-#' @return 包含`ms1`、`ms2`和`other`的list。
+#' @param input An explicit mzML file.
+#' @param output Optional JSON output path.
+#' @param min_intensity Minimum peak intensity.
+#' @param ms2_peak_limit The maximum number of peaks retained in each MS2 spectrum; `NULL` means no limit.
+#' @return List containing `ms1`, `ms2` and `other`.
 #' @export
 asari_extract_ms2 <- function(input, output = NULL, min_intensity = 1000, ms2_peak_limit = 50L) {
   infile <- .asari_public_one_mzml(input)
@@ -339,14 +339,14 @@ asari_extract_ms2 <- function(input, output = NULL, min_intensity = 1000, ms2_pe
   extracted
 }
 
-#' 将MS2谱图按m/z和RT匹配到MS1特征
+#' Match MS2 spectra to MS1 features by m/z and RT
 #'
-#' @param feature_table 明确的asari完整特征表TSV。
-#' @param ms2_files 一个或多个明确mzML文件。
-#' @param output 明确的JSON输出路径。
-#' @param rt_tolerance RT容差，单位为秒。
-#' @param ppm m/z容差。
-#' @return 按MS1特征ID组织的最佳MS2谱图list。
+#' @param feature_table Explicit asari full feature table TSV.
+#' @param ms2_files One or more explicit mzML files.
+#' @param output Explicit JSON output path.
+#' @param rt_tolerance RT tolerance, unit is seconds.
+#' @param ppm m/z tolerance.
+#' @return List of best MS2 spectra organized by MS1 feature ID.
 #' @export
 asari_match_ms2 <- function(feature_table, ms2_files, output, rt_tolerance = 30, ppm = 5) {
   feature_table <- path.expand(feature_table)
@@ -361,7 +361,7 @@ asari_match_ms2 <- function(feature_table, ms2_files, output, rt_tolerance = 30,
   )
 }
 
-# 把MSP、MGF或JSON谱库统一为ID、名称、前体m/z和两列峰matrix。
+# Unify MSP, MGF or JSON spectral library into ID, name, precursor m/z and two peak matrices.
 .asari_spectral_library <- function(library) {
   if (is.list(library) && !is.character(library)) raw <- library else {
     path <- path.expand(library)
@@ -404,17 +404,17 @@ asari_match_ms2 <- function(feature_table, ms2_files, output, rt_tolerance = 30,
   })
 }
 
-#' 使用本地谱库检索MS2谱图
+#' Search MS2 spectra using local spectral library
 #'
-#' @param spectra mzML文件、[asari_extract_ms2()]结果或MS2谱图list。
-#' @param library MSP、MGF、JSON路径或已解析谱库list。
-#' @param output 可选TSV输出路径。
-#' @param ms1_tolerance 前体离子绝对容差Da。
-#' @param ms2_tolerance 碎片峰绝对容差Da。
-#' @param min_similarity 最低相似度。
-#' @param method `"entropy"`或`"cosine"`。无外部后端时entropy使用本地JS相似度实现。
-#' @param min_intensity 从mzML提取时的最低峰强度。
-#' @return 每张查询谱的最佳谱库匹配data.frame。
+#' @param spectra mzML file, [asari_extract_ms2()] result or MS2 spectrum list.
+#' @param library MSP, MGF, JSON path or parsed spectral library list.
+#' @param output Optional TSV output path.
+#' @param ms1_tolerance The absolute tolerance of precursor ions is large.
+#' @param ms2_tolerance The absolute tolerance of fragment peaks is large.
+#' @param min_similarity Minimum similarity.
+#' @param method `"entropy"` or `"cosine"`. When there is no external backend, entropy uses local JS similarity implementation.
+#' @param min_intensity The lowest peak intensity when extracted from mzML.
+#' @return The best spectral library matching data.frame for each query spectrum.
 #' @export
 asari_search_ms2 <- function(
     spectra,

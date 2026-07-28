@@ -16,7 +16,7 @@ test_that("default_parameters完整对应Python默认配置", {
   expect_false(params$anno)
   expect_identical(params$output_feature_table, "Feature_table.tsv")
 
-  # 兼容字段不改变Python参数本身的数值。
+  # Compatible fields do not change the value of the Python parameter itself.
   expect_equal(params$min_intensity, params$min_intensity_threshold)
 })
 

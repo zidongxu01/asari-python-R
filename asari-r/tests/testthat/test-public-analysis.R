@@ -1,4 +1,4 @@
-# 合并、特征图和绘图公开入口只使用显式临时文件。
+# Merge, feature map, and plot public entries only use explicit temporary files.
 source(file.path("R", "default_parameters.R"), local = FALSE)
 source(file.path("R", "utils.R"), local = FALSE)
 source(file.path("R", "mass_functions.R"), local = FALSE)

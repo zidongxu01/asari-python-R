@@ -1,4 +1,4 @@
-# utils.py 的 10 个 def 必须逐一存在明确的 R 对应函数。
+# Each of the 10 defs in utils.py must have a clear R corresponding function.
 test_that("all 10 Python utils defs have explicit R counterparts", {
   expected_functions <- c(
     "NpEncoder_default",
@@ -19,7 +19,7 @@ test_that("all 10 Python utils defs have explicit R counterparts", {
   }, logical(1))))
 })
 
-# NpEncoder 保留类身份，并把标量和 ndarray 对应结构转换为基础 R 类型。
+# NpEncoder preserves class identity and converts scalar and ndarray corresponding structures to base R types.
 test_that("NpEncoder default converts numeric and array values", {
   encoder <- NpEncoder()
 
@@ -34,7 +34,7 @@ test_that("NpEncoder default converts numeric and array values", {
   expect_error(encoder$default(list(a = 1)), "not JSON serializable")
 })
 
-# bulk_process 必须保持输入顺序，并把每个 argument 作为唯一参数传给 command。
+# bulk_process must maintain input order and pass each argument to command as the only argument.
 test_that("bulk_process applies command in argument order", {
   result <- bulk_process(
     function(value) value * value,
@@ -50,7 +50,7 @@ test_that("bulk_process applies command in argument order", {
   )
 })
 
-# 创建本地 ZIP，避免下载测试访问外网。
+# Create a local ZIP to avoid downloading and testing access to the external network.
 make_utils_zip <- function() {
   source_dir <- tempfile("utils_zip_source_")
   dir.create(source_dir)
@@ -62,7 +62,7 @@ make_utils_zip <- function() {
   archive
 }
 
-# download_and_unzip 应下载并恢复 ZIP 中的文件内容。
+# download_and_unzip should download and restore the file contents from the ZIP.
 test_that("download_and_unzip extracts a local archive", {
   archive <- make_utils_zip()
   target <- tempfile("utils_extract_")
@@ -75,7 +75,7 @@ test_that("download_and_unzip extracts a local archive", {
   expect_equal(readLines(file.path(target, "payload.txt")), "payload")
 })
 
-# package resource 版本按 Python 逻辑解压到 package 目录父级下的 subdir。
+# The package resource version is decompressed to the subdir under the parent of the package directory according to Python logic.
 test_that("download_and_unzip_to_pkg_resources resolves package parent", {
   archive <- make_utils_zip()
   package_parent <- tempfile("fake_library_")
@@ -93,7 +93,7 @@ test_that("download_and_unzip_to_pkg_resources resolves package parent", {
   expect_true(file.exists(expected_path))
 })
 
-# 无效或不存在的 mzML 必须返回 FALSE，而不是把解析异常传播到调用者。
+# Invalid or non-existent mzML must return FALSE rather than propagating a parsing exception to the caller.
 test_that("validate_mzml_file rejects invalid files", {
   invalid <- tempfile(fileext = ".mzML")
   writeLines("not mzML", invalid)
@@ -102,7 +102,7 @@ test_that("validate_mzml_file rejects invalid files", {
   expect_false(validate_mzml_file(tempfile(fileext = ".mzML")))
 })
 
-# Python 支持的十种布尔输入形式必须全部映射到正确逻辑值。
+# All ten Boolean input forms supported by Python must be mapped to correct logical values.
 test_that("build_boolean_dict reproduces all Python keys", {
   booleans <- build_boolean_dict()
 
@@ -116,7 +116,7 @@ test_that("build_boolean_dict reproduces all Python keys", {
   )
 })
 
-# sizeof_fmt 的单位进位、负数和自定义后缀与 Python 格式一致。
+# sizeof_fmt's unit rounding, negative numbers, and custom suffixes are consistent with Python format.
 test_that("sizeof_fmt uses Python IEC units and formatting", {
   expect_equal(sizeof_fmt(0), "0.0B")
   expect_equal(sizeof_fmt(1023), "1023.0B")
@@ -126,7 +126,7 @@ test_that("sizeof_fmt uses Python IEC units and formatting", {
   expect_equal(sizeof_fmt(1024^8), "1.0YiB")
 })
 
-# checksum_file 返回标准小写 MD5，并拒绝目录或不存在的路径。
+# checksum_file returns standard lowercase MD5 and rejects directories or non-existent paths.
 test_that("checksum_file computes MD5", {
   path <- tempfile()
   writeChar("hello", path, eos = NULL)
@@ -137,14 +137,14 @@ test_that("checksum_file computes MD5", {
   expect_error(checksum_file(path, chunksize = 0), "Invalid chunksize")
 })
 
-# wait=0 与 Python range(0) 一样立即完成，非法计数应明确失败。
+# wait=0 completes immediately as does Python range(0), illegal counts should fail explicitly.
 test_that("wait_with_pbar handles zero and invalid waits", {
   expect_null(wait_with_pbar(0))
   expect_error(wait_with_pbar(-1), "non-negative integer")
   expect_error(wait_with_pbar(1.5), "non-negative integer")
 })
 
-# polarity header 覆盖正、负、混合、limit 和未设置模式。
+# The polarity header covers positive, negative, mixed, limit and unset modes.
 test_that("get_ionization_mode_mzml identifies scan polarity", {
   expect_equal(
     get_ionization_mode_mzml(list(header = data.frame(polarity = c(1, 1)))),
@@ -170,7 +170,7 @@ test_that("get_ionization_mode_mzml identifies scan polarity", {
   )
 })
 
-# 保留原 R 项目已使用的 ppm 换算兼容函数。
+# Keep the ppm conversion compatibility functions already used by the original R project.
 test_that("ppm_to_mz_tolerance converts ppm to absolute m/z tolerance", {
   expect_equal(ppm_to_mz_tolerance(100, 5), 0.0005)
   expect_equal(ppm_to_mz_tolerance(800, 5), 0.004)

@@ -1,9 +1,9 @@
-# 对应 Python asari/tools/msp_parser.py：解析MSP和MGF质谱库文本。
+# Corresponds to Python asari/tools/msp_parser.py: parses MSP and MGF spectral library text.
 
-# Python原版的受控字段同义词表。
+# Python's original controlled field synonym list.
 MSP_dict <- list(MW = "ExactMass")
 
-# 对应 msp_standarize：只在目标字段不存在时复制旧字段。
+# Corresponds to msp_standarize: only copies the old field if the target field does not exist.
 msp_standarize <- function(LL, MSP_dict = get("MSP_dict", inherits = TRUE)) {
   lapply(LL, function(entry) {
     for (key in names(MSP_dict)) {
@@ -14,7 +14,7 @@ msp_standarize <- function(LL, MSP_dict = get("MSP_dict", inherits = TRUE)) {
   })
 }
 
-# 对应 parse_msp_to_listdict：按空行切分小型MSP文件。
+# Corresponds to parse_msp_to_listdict: split small MSP files by blank lines.
 parse_msp_to_listdict <- function(file, field_separator = ": ", return_peaks = TRUE) {
   text <- paste(readLines(file, warn = FALSE), collapse = "\n")
   text <- sub("[\r\n]+$", "", text)
@@ -26,7 +26,7 @@ parse_msp_to_listdict <- function(file, field_separator = ": ", return_peaks = T
       position <- regexpr(field_separator, line, fixed = TRUE)[[1L]]
       if (position > 0L) {
         pieces <- strsplit(line, field_separator, fixed = TRUE)[[1L]]
-        # Python line.split后只取前两个元素。
+        # Python line.split only takes the first two elements.
         result[[pieces[[1L]]]] <- pieces[[2L]]
       } else if (nzchar(trimws(line))) {
         peak_lines <- c(peak_lines, line)
@@ -49,7 +49,7 @@ parse_msp_to_listdict <- function(file, field_separator = ": ", return_peaks = T
   })
 }
 
-# 对应 parse_mgf 内部 def parse_pepmass。
+# Corresponds to parse_mgf internal def parse_pepmass.
 .parse_mgf_pepmass <- function(value) {
   parts <- strsplit(trimws(value), "[[:space:]]+")[[1L]]
   if (length(parts) == 1L) return(list(as.numeric(parts[[1L]]), NULL))
@@ -57,13 +57,13 @@ parse_msp_to_listdict <- function(file, field_separator = ": ", return_peaks = T
   list(NULL, NULL)
 }
 
-# 对应 parse_mgf 内部 def parse_charge。
+# Corresponds to parse_mgf internal def parse_charge.
 .parse_mgf_charge <- function(value) {
   matched <- regmatches(value, regexpr("[0-9]+", value, perl = TRUE))
   if (length(matched) == 0L || !nzchar(matched)) NULL else as.integer(matched)
 }
 
-# 对应 parse_mgf：读取BEGIN IONS/END IONS块及参数和峰数组。
+# Corresponds to parse_mgf: Read BEGIN IONS/END IONS blocks and parameters and peak arrays.
 parse_mgf <- function(file_path) {
   spectra <- list()
   current <- NULL
@@ -100,7 +100,7 @@ parse_mgf <- function(file_path) {
   spectra
 }
 
-# 对应 parse_peak_token：解析冒号分隔峰，保留剩余注释文本。
+# Corresponds to parse_peak_token: Parse colon-separated peaks and retain the remaining annotation text.
 parse_peak_token <- function(token) {
   parts <- strsplit(token, ":", fixed = TRUE)[[1L]]
   if (length(parts) < 2L) return(NULL)
@@ -113,12 +113,12 @@ parse_peak_token <- function(token) {
   )
 }
 
-# 判断Python正则所接受的普通十进制数字，不包含科学记数法。
+# Determine the ordinary decimal numbers accepted by Python regularity, excluding scientific notation.
 .msp_plain_number <- function(value) {
   grepl("^-?[0-9]+(\\.[0-9]+)?$", value, perl = TRUE)
 }
 
-# 对应 parse_peak_line：兼容空格、逗号和冒号三种峰格式。
+# Corresponds to parse_peak_line: compatible with three peak formats: spaces, commas and colons.
 parse_peak_line <- function(line) {
   tokens <- strsplit(gsub(",", " ", line, fixed = TRUE), "[[:space:]]+")[[1L]]
   tokens <- tokens[nzchar(tokens)]
@@ -151,7 +151,7 @@ parse_peak_line <- function(line) {
   peaks
 }
 
-# 对应 parse_msp：按Name和Num Peaks组织更宽松的MSP记录。
+# Corresponds to parse_msp: looser MSP records organized by Name and Num Peaks.
 parse_msp <- function(filepath) {
   spectra <- list()
   current <- NULL

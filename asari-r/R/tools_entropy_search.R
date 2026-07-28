@@ -1,6 +1,6 @@
-# 对应 Python asari/tools/entropy_search.py：MS2谱图清理和谱图熵数据库检索。
+# Corresponds to Python asari/tools/entropy_search.py: MS2 spectrum cleaning and spectrum entropy database search.
 
-# Python模块级默认参数。
+# Python module-level default parameters.
 entropy_search_param <- list(
   ion_mode = "positive",
   mz_tol_ms1 = 0.01,
@@ -10,7 +10,7 @@ entropy_search_param <- list(
 )
 param <- entropy_search_param
 
-# 调用可注入的熵检索后端方法；环境和具名list均支持。
+# Calls the injectable entropy retrieval backend method; both environment and named lists are supported.
 .entropy_backend_method <- function(entropy_search, name) {
   method <- if (is.environment(entropy_search)) {
     get0(name, envir = entropy_search, mode = "function", inherits = FALSE)
@@ -21,7 +21,7 @@ param <- entropy_search_param
   method
 }
 
-# 读取最佳数据库条目；后端可提供entries、get_entry或直接索引函数。
+# Read the best database entry; the backend can provide entries, get_entry or direct index functions.
 .entropy_backend_entry <- function(entropy_search, index0) {
   if (is.environment(entropy_search) && exists(
       "get_entry", envir = entropy_search, inherits = FALSE)) {
@@ -33,7 +33,7 @@ param <- entropy_search_param
   stop("Entropy backend cannot return database entries.")
 }
 
-# 对应 clean_list_ms2spectra：清理普通MS2谱图列表。
+# Corresponds to clean_list_ms2spectra: cleans the ordinary MS2 spectrum list.
 clean_list_ms2spectra <- function(list_ms2_spectra, entropy_search, params = list()) {
   cleaner <- .entropy_backend_method(entropy_search, "clean_spectrum_for_search")
   cleaned <- list()
@@ -53,7 +53,7 @@ clean_list_ms2spectra <- function(list_ms2_spectra, entropy_search, params = lis
   cleaned
 }
 
-# 执行一次identity_search并规范化后端返回值。
+# Execute identity_search once and normalize the backend return value.
 .entropy_identity_search <- function(entropy_search, precursor_mz, peaks, params) {
   search <- .entropy_backend_method(entropy_search, "identity_search")
   search(
@@ -65,14 +65,14 @@ clean_list_ms2spectra <- function(list_ms2_spectra, entropy_search, params = lis
   )
 }
 
-# 去掉数据库条目的peaks字段，使结果可JSON序列化。
+# Remove the peaks field of the database entry to make the result JSON serializable.
 .entropy_result_entry <- function(entropy_search, best_index0) {
   entry <- .entropy_backend_entry(entropy_search, best_index0)
   entry$peaks <- NULL
   entry
 }
 
-# 对应 search_ms2_spectra：返回超过阈值的最佳数据库条目。
+# Corresponds to search_ms2_spectra: Returns the best database entry that exceeds the threshold.
 search_ms2_spectra <- function(cleaned_spectra, entropy_search, params = list()) {
   results <- list()
   for (spectrum in cleaned_spectra) {
@@ -91,7 +91,7 @@ search_ms2_spectra <- function(cleaned_spectra, entropy_search, params = list())
   results
 }
 
-# 对应 get_cleaned_experimental_ms2：清理已经按MS1特征分组的最佳MS2谱图。
+# Corresponds to get_cleaned_experimental_ms2: cleans the best MS2 spectra that have been grouped by MS1 features.
 get_cleaned_experimental_ms2 <- function(dict_ms2_spectra, entropy_search, params = list()) {
   cleaner <- .entropy_backend_method(entropy_search, "clean_spectrum_for_search")
   cleaned <- list()
@@ -110,7 +110,7 @@ get_cleaned_experimental_ms2 <- function(dict_ms2_spectra, entropy_search, param
   cleaned
 }
 
-# 对应 search_ms1matchedms2_spectra：以feature id为键保存最佳匹配。
+# Corresponds to search_ms1matchedms2_spectra: save the best match with feature id as the key.
 search_ms1matchedms2_spectra <- function(cleaned_spectra, entropy_search, params = list()) {
   results <- list()
   for (spectrum in cleaned_spectra) {

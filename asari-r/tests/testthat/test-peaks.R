@@ -1,4 +1,4 @@
-# peaks.py 的 19 个顶层函数必须全部存在，防止整模块迁移时漏函数。
+# All 19 top-level functions of peaks.py must exist to prevent missing functions when migrating the entire module.
 test_that("peaks module contains every Python top-level function", {
   expected_functions <- c(
     "batch_deep_detect_elution_peaks",
@@ -22,13 +22,13 @@ test_that("peaks module contains every Python top-level function", {
     "extend_ROI"
   )
 
-  # 逐个检查函数对象，而不只检查同名变量。
+  # Check function objects one by one, not just variables with the same name.
   expect_true(all(vapply(expected_functions, function(name) {
     exists(name, mode = "function", inherits = TRUE)
   }, logical(1))))
 })
 
-# 这些参考值直接来自相同输入下的 scipy.signal.find_peaks。
+# These reference values come directly from scipy.signal.find_peaks on the same input.
 test_that("SciPy peak properties are reproduced", {
   values <- c(0, 1, 4, 1, 0, 2, 7, 2, 0)
   detected <- .find_peaks_scipy(
@@ -40,7 +40,7 @@ test_that("SciPy peak properties are reproduced", {
     wlen = 5
   )
 
-  # 峰位置、prominence、base、FWHM 插值位置都使用 Python 0-based 语义。
+  # Peak position, prominence, base, FWHM interpolated position all use Python 0-based semantics.
   expect_equal(detected$peaks, c(2L, 6L))
   expect_equal(detected$properties$peak_heights, c(4, 7))
   expect_equal(detected$properties$prominences, c(4, 7))
@@ -53,7 +53,7 @@ test_that("SciPy peak properties are reproduced", {
   )
 })
 
-# 平台峰中心和等高峰 distance 取舍是 SciPy 容易产生边界差异的情况。
+# The trade-off between plateau peak center and equal peak distance is a situation where SciPy is prone to boundary differences.
 test_that("plateau and distance rules match SciPy", {
   plateau <- .find_peaks_scipy(
     c(0, 1, 1, 1, 0),
@@ -72,13 +72,13 @@ test_that("plateau and distance rules match SciPy", {
     wlen = 5
   )
 
-  # 偶数/奇数平台按 SciPy 中点向下取整；等高冲突峰保留右侧峰。
+  # Even/odd platforms are rounded down to the SciPy midpoint; contour conflict peaks retain the peak on the right.
   expect_equal(plateau$peaks, 2L)
   expect_equal(plateau$properties$widths, 3)
   expect_equal(equal_peaks$peaks, 3L)
 })
 
-# 完美 Gaussian 的 Python curve_fit 参考结果是 R2=1、sigma=3。
+# The Python curve_fit reference result for a perfect Gaussian is R2=1, sigma=3.
 test_that("Gaussian fitting and area match Python curve_fit", {
   scans <- 0:30
   intensity <- 1000 * exp(-((scans - 15)^2) / (2 * 3^2))
@@ -87,13 +87,13 @@ test_that("Gaussian fitting and area match Python curve_fit", {
   )
   area <- get_gaussian_peakarea_on_intensity_list(intensity, 0, 31)
 
-  # Gaussian 全积分的 SciPy 结果为 7519.884823893001。
+  # The SciPy result for the Gaussian full integration is 7519.884823893001.
   expect_equal(fitted[[1L]], 1, tolerance = 1e-10)
   expect_equal(fitted[[2L]], 3, tolerance = 1e-8)
   expect_equal(area, 7519.884823893001, tolerance = 1e-7)
 })
 
-# 验证局部噪声切片和 cSelectivity 的 Python 索引语义。
+# Verifying Python indexing semantics for local noise slicing and cSelectivity.
 test_that("noise and cSelectivity calculations match Python", {
   scans <- 0:30
   intensity <- 1000 * exp(-((scans - 15)^2) / (2 * 3^2))
@@ -105,13 +105,13 @@ test_that("noise and cSelectivity calculations match Python", {
     list(list(left_base = 8L, right_base = 22L, height = 1000))
   )
 
-  # 参考值由 Python peaks.py 在同一向量上计算得到。
+  # The reference value is calculated by Python peaks.py on the same vector.
   expect_equal(noise, 310.40833071931445, tolerance = 1e-12)
   expect_equal(selectivity[[1L]], 1)
   expect_equal(selectivity[[2L]], 8:22)
 })
 
-# 验证完整单 track 流程，不只验证独立数学辅助函数。
+# Verify the complete single track process, not just independent mathematical auxiliary functions.
 test_that("full statistical peak detection matches Python output", {
   scans <- 0:100
   intensity <- as.integer(
@@ -134,7 +134,7 @@ test_that("full statistical peak detection matches Python output", {
     intensity = intensity
   )
 
-  # 同时测试 job 生成、批量展平和核心检测三层接口。
+  # At the same time, the three-layer interfaces of job generation, batch flattening and core detection are tested.
   jobs <- iter_peak_detection_parameters(list(track), 101, parameters)
   direct <- stats_detect_elution_peaks(jobs[[1L]])
   batched <- batch_deep_detect_elution_peaks(list(track), 101, parameters)
@@ -154,13 +154,13 @@ test_that("full statistical peak detection matches Python output", {
   expect_equal(peak$snr, 193L)
 })
 
-# 验证重叠峰边界修正、合并和 ROI 扩展的离散逻辑。
+# Verify discrete logic for overlapping peak boundaries correction, merging, and ROI expansion.
 test_that("overlap cleanup and ROI extension match Python", {
   peak1 <- list(apex = 5L, left_base = 0L, right_base = 10L)
   peak2 <- list(apex = 12L, left_base = 6L, right_base = 16L)
   peak3 <- list(apex = 18L, left_base = 12L, right_base = 22L)
 
-  # 两峰重叠 4 scans，应被识别为重叠并重新拆分四个边界。
+  # Two peaks overlap by 4 scans and should be identified as overlapping and re-split at four boundaries.
   expect_true(`_check_overlap`(peak1, peak2))
   cleaned <- cleanup_peak_cluster(list(peak1, peak2))
   expect_equal(cleaned[[1L]]$left_base, 0L)
@@ -168,7 +168,7 @@ test_that("overlap cleanup and ROI extension match Python", {
   expect_equal(cleaned[[2L]]$left_base, 10L)
   expect_equal(cleaned[[2L]]$right_base, 16L)
 
-  # 三峰簇合并后继承第一个最大跨度峰，并扩展到整个簇边界。
+  # Trimodal clusters inherit the first maximum span peak after merging and extend to the entire cluster boundary.
   merged <- `_merge_peak_cluster`(list(peak1, peak2, peak3))
   expect_equal(merged$left_base, 0L)
   expect_equal(merged$right_base, 22L)

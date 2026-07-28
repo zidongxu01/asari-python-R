@@ -1,12 +1,12 @@
-# 对应 Python asari/constructors.py：MassGrid 与 CompositeMap 的完整 R 实现。
+# Corresponds to Python asari/constructors.py: Complete R implementation of MassGrid and CompositeMap.
 #
-# 数据结构约定：
-# 1. Python 可变对象在 R 中使用 environment，保证方法内部修改可以保留。
-# 2. MassGrid 使用 data.frame；第一列为 mz，其余列按样本名保存 0-based track ID。
-# 3. Python 对外的 scan、feature 和 track ID 继续保持 0-based；访问 R 向量时才加 1。
-# 4. Python None / pandas NaN 在 MassGrid 中使用 NA 表示。
+# Data structure convention:
+# 1. Python mutable objects use environment in R to ensure that the internal modifications of the method can be retained.
+# 2. MassGrid uses data.frame; the first column is mz, and the remaining columns save 0-based track IDs according to sample names.
+# 3. Python’s external scan, feature and track IDs continue to remain 0-based; 1 is added when accessing the R vector.
+# 4. Python None / pandas NaN is represented by NA in MassGrid.
 
-# 读取 environment 或 list 的字段，并允许为缺失字段提供默认值。
+# Reads the fields of an environment or list, allowing default values to be provided for missing fields.
 .constructors_get <- function(object, name, default = NULL) {
   if (is.environment(object)) {
     if (exists(name, envir = object, inherits = FALSE)) {
@@ -18,7 +18,7 @@
   default
 }
 
-# 修改可变对象字段；constructors 中需要修改的 Python 对象必须使用 environment。
+# Modify mutable object fields; Python objects that need to be modified in constructors must use environment.
 .constructors_set <- function(object, name, value) {
   if (!is.environment(object)) {
     stop("Mutable constructor objects must be environments.", call. = FALSE)
@@ -27,7 +27,7 @@
   invisible(value)
 }
 
-# 把普通具名 list 浅复制成 environment，便于测试和后续 samples.R 接入。
+# Shallow copy a common named list into an environment to facilitate testing and subsequent access to samples.R.
 .constructors_as_environment <- function(object, class_name = NULL) {
   if (is.environment(object)) {
     if (!is.null(class_name) && !inherits(object, class_name)) {
@@ -41,7 +41,7 @@
   result
 }
 
-# 按 Python registry[id] 语义读取样本登记项，兼容具名 ID 和 0-based 数字 ID。
+# Read sample registry entries according to Python registry[id] semantics, compatible with named IDs and 0-based numeric IDs.
 .constructors_registry_get <- function(registry, sample_id) {
   if (is.environment(registry)) {
     key <- as.character(sample_id)
@@ -56,7 +56,7 @@
   stop("Unknown sample id: ", key, call. = FALSE)
 }
 
-# 在 samples.py 尚未迁移完成时，通过实验提供的 sample_factory 或登记项创建 SimpleSample。
+# When samples.py has not yet been migrated, create a SimpleSample from the sample_factory or registry provided by the experiment.
 .constructors_make_simple_sample <- function(registry,
                                              experiment,
                                              database_mode,
@@ -73,7 +73,7 @@
     ))
   }
 
-  # 登记项本身若已经是 SimpleSample environment，直接补充引用和状态。
+  # If the registration item itself is already a SimpleSample environment, directly add the reference and status.
   sample <- .constructors_as_environment(registry, "SimpleSample")
   sample$experiment <- experiment
   sample$database_mode <- database_mode
@@ -88,7 +88,7 @@
   sample
 }
 
-# 对应 SimpleSample.get_masstracks_and_anchors / get_mass_tracks_for_sample。
+# Corresponds to SimpleSample.get_masstracks_and_anchors / get_mass_tracks_for_sample.
 .constructors_get_mass_tracks <- function(sample) {
   method <- .constructors_get(sample, "get_masstracks_and_anchors")
   if (is.function(method)) return(method())
@@ -101,7 +101,7 @@
   stop("Sample does not provide mass tracks.", call. = FALSE)
 }
 
-# 复制 scipy.interpolate.interp1d(..., fill_value="extrapolate") 的线性插值。
+# Copy linear interpolation from scipy.interpolate.interp1d(..., fill_value="extrapolate").
 .constructors_interp_extrapolate <- function(x, y, xout) {
   if (length(x) < 2L || length(y) != length(x)) {
     stop("Interpolation requires at least two paired points.", call. = FALSE)
@@ -124,7 +124,7 @@
   result
 }
 
-# 读取以 scan 编号为 names 的 R 向量，模拟 Python dict.get(key, default)。
+# Read an R vector of scan-numbered names, simulating Python dict.get(key, default).
 .constructors_dict_get <- function(dictionary, key, default = NULL) {
   if (is.null(dictionary) || length(dictionary) == 0L) return(default)
   key <- as.character(key)
@@ -134,21 +134,21 @@
   default
 }
 
-# 把具名映射中的数值写入 names=key 的向量，并保留最后一次赋值。
+# Write the values in the named map to the vector names=key, retaining the last assignment.
 .constructors_dict_set <- function(dictionary, key, value) {
   if (is.null(dictionary)) dictionary <- numeric()
   dictionary[[as.character(key)]] <- value
   dictionary
 }
 
-# 复现 scipy.ndimage.maximum_filter1d(size=2, mode="constant")。
+# Reproduce scipy.ndimage.maximum_filter1d(size=2, mode="constant").
 .constructors_maximum_filter_size2 <- function(values) {
   values <- as.numeric(values)
   if (length(values) == 0L) return(values)
   pmax(c(0, values[-length(values)]), values)
 }
 
-# 把 Python [start:stop] 半开切片转换为 R 下标，并处理负边界和越界截断。
+# Convert Python [start:stop] half-open slices to R subscripts, and handle negative bounds and out-of-bounds truncation.
 .constructors_python_slice <- function(values, start, stop) {
   n <- length(values)
   start <- as.integer(start)
@@ -161,7 +161,7 @@
   values[seq.int(start + 1L, stop)]
 }
 
-# 对应 mass2chem.find_mzdiff_pairs_from_masstracks，寻找 13C/12C 和 Na/H 锚点。
+# Corresponds to mass2chem.find_mzdiff_pairs_from_masstracks, finding 13C/12C and Na/H anchors.
 .constructors_find_mzdiff_pairs <- function(list_mass_tracks,
                                             list_mz_diff = c(1.003355, 21.9820),
                                             mz_tolerance_ppm = 5) {
@@ -169,7 +169,7 @@
   mzs <- vapply(list_mass_tracks, `[[`, numeric(1), "mz")
   pairs <- list()
 
-  # 对每个目标差值寻找容差内绝对误差最小的 mass track。
+  # Find the mass track with the smallest absolute error within the tolerance for each target difference.
   for (difference in list_mz_diff) {
     for (track in list_mass_tracks) {
       target <- track$mz + difference
@@ -186,7 +186,7 @@
   pairs
 }
 
-# 获取 Python MassGrid[row, sample]：row_id 与 track ID 都保持 0-based。
+# Get Python MassGrid[row, sample]: both row_id and track ID remain 0-based.
 .constructors_grid_get <- function(grid, sample_name, row_id) {
   if (!(sample_name %in% names(grid))) return(NA_real_)
   row <- as.integer(row_id) + 1L
@@ -195,10 +195,10 @@
 }
 
 # -----------------------------------------------------------------------------
-# Python class MassGrid：7 个方法和 1 个嵌套辅助函数
+# Python class MassGrid: 7 methods and 1 nested helper function
 # -----------------------------------------------------------------------------
 
-# 对应 MassGrid.__init__：创建可变 MassGrid environment。
+# Corresponds to MassGrid.__init__: Creates a variable MassGrid environment.
 MassGrid__init__ <- function(cmap, experiment) {
   self <- new.env(parent = emptyenv())
   class(self) <- c("MassGrid", "environment")
@@ -214,13 +214,13 @@ MassGrid__init__ <- function(cmap, experiment) {
   self
 }
 
-# 对应 MassGrid.build_grid_sample_wise：逐个样本加入动态参考 m/z 网格。
+# Corresponds to MassGrid.build_grid_sample_wise: adds dynamic reference m/z grid sample by sample.
 MassGrid_build_grid_sample_wise <- function(self) {
   MassGrid__initiate_mass_grid(self)
   sample_ids <- self$experiment$valid_sample_ids
   sample_ids <- sample_ids[sample_ids != self$experiment$reference_sample_id]
 
-  # Python 会为每个非参考登记项创建 SimpleSample，再调用 add_sample。
+  # Python creates a SimpleSample for each non-reference entry and calls add_sample.
   for (sample_id in sample_ids) {
     sample <- .constructors_make_simple_sample(
       .constructors_registry_get(self$experiment$sample_registry, sample_id),
@@ -234,11 +234,11 @@ MassGrid_build_grid_sample_wise <- function(self) {
   invisible(self)
 }
 
-# 对应 MassGrid.build_grid_by_centroiding：一次性聚类全部样本的 track m/z。
+# Corresponds to MassGrid.build_grid_by_centroiding: cluster the track m/z of all samples at once.
 MassGrid_build_grid_by_centroiding <- function(self) {
   all_tracks <- list()
 
-  # tuple 结构保持 (mz, 0-based track_id, 0-based sample_index)。
+  # The tuple structure holds (mz, 0-based track_id, 0-based sample_index).
   for (sample_index in seq_len(self$`_number_of_samples_`) - 1L) {
     sample_id <- self$experiment$valid_sample_ids[[sample_index + 1L]]
     registry <- .constructors_registry_get(
@@ -252,7 +252,7 @@ MassGrid_build_grid_by_centroiding <- function(self) {
     }
   }
 
-  # Python tuple sort 按 mz、track_id、sample_index 依次排序。
+  # Python tuple sort sorts by mz, track_id, sample_index.
   ordering <- order(
     vapply(all_tracks, `[[`, numeric(1), 1L),
     vapply(all_tracks, `[[`, numeric(1), 2L),
@@ -263,7 +263,7 @@ MassGrid_build_grid_by_centroiding <- function(self) {
     self, all_tracks, self$experiment$reference_sample_id
   )
 
-  # 初始化样本列并把每个 bin 中的 track ID 填入相应样本列。
+  # Initialize the sample column and fill in the track ID in each bin into the corresponding sample column.
   grid <- as.data.frame(
     matrix(NA_real_, nrow = length(all_bins), ncol = self$`_number_of_samples_`),
     stringsAsFactors = FALSE
@@ -279,7 +279,7 @@ MassGrid_build_grid_by_centroiding <- function(self) {
   self$MassGrid <- cbind(mz = mz_list, grid)
   names(self$MassGrid) <- c("mz", self$CMAP$list_sample_names)
 
-  # 计算 m/z 差值锚点，并把 0-based pair 转成 R 1-based landmark 行位置。
+  # Calculate m/z difference anchor points and convert 0-based pair into R 1-based landmark row positions.
   list_mass_tracks <- lapply(seq_along(mz_list), function(ii) {
     list(id_number = ii - 1L, mz = mz_list[[ii]])
   })
@@ -292,7 +292,7 @@ MassGrid_build_grid_by_centroiding <- function(self) {
     sort(as.integer(flattened) + 1L)
   }
 
-  # 创建参考及其余 SimpleSample 实例，保持 experiment.all_samples 顺序。
+  # Create reference and remaining SimpleSample instances, keeping experiment.all_samples order.
   self$reference_sample_instance$rt_cal_dict <- numeric()
   self$reference_sample_instance$reverse_rt_cal_dict <- numeric()
   self$experiment$all_samples[[length(self$experiment$all_samples) + 1L]] <-
@@ -311,7 +311,7 @@ MassGrid_build_grid_by_centroiding <- function(self) {
   invisible(self)
 }
 
-# 对应 MassGrid._initiate_mass_grid：用参考样本建立第一版 MassGrid。
+# Corresponds to MassGrid._initiate_mass_grid: Use reference sample to create the first version of MassGrid.
 MassGrid__initiate_mass_grid <- function(self) {
   reference_sample <- self$reference_sample_instance
   reference_sample$rt_cal_dict <- numeric()
@@ -320,7 +320,7 @@ MassGrid__initiate_mass_grid <- function(self) {
   self$`_mz_landmarks_` <- sort(as.integer(reference_sample$`_mz_landmarks_`))
   reference_mzs <- vapply(reference_tracks, `[[`, numeric(1), "mz")
 
-  # 所有样本列先填 NA，参考样本列写入 Python 0-based id_number。
+  # All sample columns are filled with NA first, and the reference sample column is written with Python 0-based id_number.
   grid <- data.frame(mz = reference_mzs, check.names = FALSE)
   for (sample_name in self$list_sample_names) grid[[sample_name]] <- NA_real_
   grid[[reference_sample$name]] <- vapply(
@@ -332,12 +332,12 @@ MassGrid__initiate_mass_grid <- function(self) {
   invisible(self)
 }
 
-# 对应 MassGrid.add_sample：以 landmark 引导方式加入一个新样本。
+# Corresponds to MassGrid.add_sample: add a new sample using landmark guidance.
 MassGrid_add_sample <- function(self, sample) {
   message("Adding sample to MassGrid, ", sample$name)
   mz_list <- vapply(sample$track_mzs, `[[`, numeric(1), 1L)
 
-  # mass_functions.R 的 landmark 接口和 mapping 位置均使用 R 1-based。
+  # The landmark interface and mapping position of mass_functions.R use R 1-based.
   mapping <- landmark_guided_mapping(
     self$MassGrid$mz,
     as.integer(self$`_mz_landmarks_`),
@@ -348,7 +348,7 @@ MassGrid_add_sample <- function(self, sample) {
       self$experiment$parameters$correction_tolerance_ppm
   )
 
-  # 新网格复制旧行；mapping 的样本位置减 1 后保存为 Python track ID。
+  # The new grid copies the old row; the mapping sample position is decremented by 1 and saved as the Python track ID.
   new_grid <- data.frame(mz = mapping$new_reference_mzlist, check.names = FALSE)
   for (sample_name in self$list_sample_names) new_grid[[sample_name]] <- NA_real_
   old_rows <- seq_len(nrow(self$MassGrid))
@@ -364,7 +364,7 @@ MassGrid_add_sample <- function(self, sample) {
   invisible(self)
 }
 
-# 对应 MassGrid.bin_track_mzs 内嵌 def __get_bin__。
+# Corresponds to MassGrid.bin_track_mzs inline def __get_bin__.
 MassGrid_bin_track_mzs__get_bin <- function(bin_data_tuples) {
   list(
     stats::median(vapply(bin_data_tuples, `[[`, numeric(1), 1L)),
@@ -372,16 +372,16 @@ MassGrid_bin_track_mzs__get_bin <- function(bin_data_tuples) {
   )
 }
 
-# 对应 MassGrid.bin_track_mzs：把所有样本的 m/z tuple 聚成 centroid bins。
+# Corresponds to MassGrid.bin_track_mzs: aggregate m/z tuples of all samples into centroid bins.
 MassGrid_bin_track_mzs <- function(self, tl, reference_id = NULL) {
-  # reference_id 与 Python 一样暂不参与计算，只保留接口。
+  # The reference_id is not involved in the calculation for the time being, just like Python, only the interface is retained.
   invisible(reference_id)
   if (length(tl) == 0L) return(list())
   tolerance_ratio <- 1e-6 * self$experiment$parameters$mz_tolerance_ppm
   bins_of_bins <- list()
   current <- list(tl[[1L]])
 
-  # 先按相邻 m/z 是否落在 ppm 容差内形成粗 bin。
+  # First, a coarse bin is formed based on whether the adjacent m/z falls within the ppm tolerance.
   if (length(tl) > 1L) {
     for (ii in 2:length(tl)) {
       delta <- tl[[ii]][[1L]] - tl[[ii - 1L]][[1L]]
@@ -395,7 +395,7 @@ MassGrid_bin_track_mzs <- function(self, tl, reference_id = NULL) {
   }
   bins_of_bins[[length(bins_of_bins) + 1L]] <- current
 
-  # 范围不超过双倍容差时直接取中位数，否则调用 seed 聚类继续拆分。
+  # When the range does not exceed double the tolerance, the median is taken directly, otherwise seed clustering is called to continue splitting.
   good_bins <- list()
   for (bin_data in bins_of_bins) {
     mz_values <- vapply(bin_data, `[[`, numeric(1), 1L)
@@ -414,7 +414,7 @@ MassGrid_bin_track_mzs <- function(self, tl, reference_id = NULL) {
   good_bins
 }
 
-# 对应 MassGrid.join：Python 原函数为 pass，因此 R 保持无副作用占位。
+# Corresponds to MassGrid.join: Python’s original function is pass, so R remains side-effect-free.
 MassGrid_join <- function(self, M2) {
   invisible(self)
   invisible(M2)
@@ -422,17 +422,17 @@ MassGrid_join <- function(self, M2) {
 }
 
 # -----------------------------------------------------------------------------
-# Python class CompositeMap：20 个方法
+# Python class CompositeMap: 20 methods
 # -----------------------------------------------------------------------------
 
-# 对应 CompositeMap.__init__：创建实验级 composite map。
+# Corresponds to CompositeMap.__init__: Create experimental composite map.
 CompositeMap__init__ <- function(experiment) {
   self <- new.env(parent = emptyenv())
   class(self) <- c("CompositeMap", "environment")
   self$experiment <- experiment
   self$`_number_of_samples_` <- experiment$number_of_samples
 
-  # 样本列顺序严格跟随 valid_sample_ids。
+  # Sample column order strictly follows valid_sample_ids.
   self$list_sample_names <- unname(vapply(
     experiment$valid_sample_ids,
     function(sample_id) {
@@ -444,7 +444,7 @@ CompositeMap__init__ <- function(experiment) {
     character(1)
   ))
 
-  # 参考样本决定 RT 坐标系和最大参考保留时间。
+  # reference sample determines the RT coordinate system and the maximum reference retention time.
   self$reference_sample_instance <-
     CompositeMap_get_reference_sample_instance(
       self, experiment$reference_sample_id
@@ -458,7 +458,7 @@ CompositeMap__init__ <- function(experiment) {
     self$dict_scan_rtime[[as.character(self$rt_length - 1L)]]
   )
 
-  # 初始化 MassGrid、feature 和 composite track 容器。
+  # Initialize the MassGrid, feature and composite track containers.
   self$MassGrid <- NULL
   self$FeatureTable <- NULL
   self$FeatureList <- list()
@@ -468,7 +468,7 @@ CompositeMap__init__ <- function(experiment) {
   self
 }
 
-# 对应 CompositeMap.get_reference_sample_instance：包装参考样本并加载 mass tracks。
+# Corresponds to CompositeMap.get_reference_sample_instance: wraps reference sample and loads mass tracks.
 CompositeMap_get_reference_sample_instance <- function(self,
                                                        reference_sample_id) {
   registry <- .constructors_registry_get(
@@ -485,7 +485,7 @@ CompositeMap_get_reference_sample_instance <- function(self,
   sample
 }
 
-# 对应 CompositeMap.get_reference_rtimes：插值并外推参考 scan 到 retention time。
+# Corresponds to CompositeMap.get_reference_rtimes: interpolates and extrapolates reference scan to retention time.
 CompositeMap_get_reference_rtimes <- function(self, rt_length) {
   x <- self$reference_sample$rt_numbers
   y <- self$reference_sample$list_retention_time
@@ -494,7 +494,7 @@ CompositeMap_get_reference_rtimes <- function(self, rt_length) {
   stats::setNames(new_y, new_x)
 }
 
-# 对应 CompositeMap.construct_mass_grid：按样本数选择逐样本或 centroiding 路径。
+# Corresponds to CompositeMap.construct_mass_grid: Select sample-by-sample or centroiding path by number of samples.
 CompositeMap_construct_mass_grid <- function(self) {
   message("Constructing MassGrid, ...")
   mass_grid <- MassGrid__init__(self, self$experiment)
@@ -511,7 +511,7 @@ CompositeMap_construct_mass_grid <- function(self) {
   invisible(self)
 }
 
-# 对应 CompositeMap.mock_rentention_alignment：为非参考样本创建空 RT 映射。
+# Corresponds to CompositeMap.mock_retention_alignment: Creates an empty RT mapping for non-reference sample.
 CompositeMap_mock_rentention_alignment <- function(self) {
   if (length(self$experiment$all_samples) > 1L) {
     for (sample in self$experiment$all_samples[-1L]) {
@@ -522,7 +522,7 @@ CompositeMap_mock_rentention_alignment <- function(self) {
   invisible(self)
 }
 
-# 读取 experiment.mapping 中 0-based 样本位置的映射目标。
+# Read the mapping target for the 0-based sample position in experiment.mapping.
 .constructors_mapping_get <- function(mapping, sample_index) {
   if (is.null(mapping) || length(mapping) == 0L) return(NULL)
   key <- as.character(sample_index)
@@ -532,14 +532,14 @@ CompositeMap_mock_rentention_alignment <- function(self) {
   NULL
 }
 
-# 对应 CompositeMap.perform_index_alignment：按 RI index samples 对齐并构建 composite tracks。
+# Corresponds to CompositeMap.perform_index_alignment: align and build composite tracks according to RI index samples.
 CompositeMap_perform_index_alignment <- function(self) {
   mz_rows <- seq_len(nrow(self$MassGrid)) - 1L
   mz_values <- self$MassGrid$mz
   base_track <- integer(self$rt_length)
   composite <- lapply(mz_rows, function(index) base_track)
 
-  # mapping 中未作为普通 study sample 出现的样本是 index standards。
+  # Samples that do not appear as ordinary study samples in the mapping are index standards.
   index_samples <- list()
   for (sample_index in seq_along(self$experiment$all_samples) - 1L) {
     if (is.null(.constructors_mapping_get(
@@ -558,7 +558,7 @@ CompositeMap_perform_index_alignment <- function(self) {
   )
   master_index_sample <- index_samples[[1L]]
 
-  # 每个 index sample 使用同一组 reference landmark peaks 建立扫描映射。
+  # Each index sample uses the same set of reference landmark peaks to build a scan map.
   for (index_sample in index_samples) {
     index_tracks <- .constructors_get_mass_tracks(index_sample)
     candidate_landmarks <- vapply(
@@ -591,7 +591,7 @@ CompositeMap_perform_index_alignment <- function(self) {
     }
     message("\tgood_landmarks: ", index_sample$name, " ", length(good_peaks))
 
-    # Python 手工执行 clean points、LOWESS 和双向线性外推。
+    # Python manually performs clean points, LOWESS, and bidirectional linear extrapolation.
     sample_scans <- index_sample$list_scan_numbers
     sample_bound <- max(sample_scans)
     right_end <- 1.1 * sample_bound
@@ -640,7 +640,7 @@ CompositeMap_perform_index_alignment <- function(self) {
     )
   }
 
-  # 普通 study sample 先经 RI model 映射到对应 index sample，再叠加到 composite。
+  # Ordinary study samples are first mapped to the corresponding index samples through the RI model, and then superimposed on the composite.
   for (sample_index in seq_along(self$experiment$all_samples) - 1L) {
     sample <- self$experiment$all_samples[[sample_index + 1L]]
     tracks <- .constructors_get_mass_tracks(sample)
@@ -704,12 +704,12 @@ CompositeMap_perform_index_alignment <- function(self) {
   invisible(self)
 }
 
-# 对应 CompositeMap.build_composite_tracks_GC：GC 路径直接执行 index alignment。
+# Corresponds to CompositeMap.build_composite_tracks_GC: GC path directly executes index alignment.
 CompositeMap_build_composite_tracks_GC <- function(self) {
   CompositeMap_perform_index_alignment(self)
 }
 
-# 对应 CompositeMap.START 内嵌 def __similarity。
+# Corresponds to CompositeMap.START inline def __similarity.
 CompositeMap_START__similarity <- function(reference_peaks_per_sample,
                                            sample1,
                                            sample2) {
@@ -721,14 +721,14 @@ CompositeMap_START__similarity <- function(reference_peaks_per_sample,
   ))
   union_indices <- union(indices1, indices2)
 
-  # Python 在空并集时会产生除零错误；R 也明确拒绝这个无定义相似度。
+  # Python produces a divide-by-zero error on an empty union; R also explicitly rejects this undefined similarity.
   if (length(union_indices) == 0L) {
     stop("START similarity is undefined for two empty peak sets.", call. = FALSE)
   }
   length(intersect(indices1, indices2)) / length(union_indices)
 }
 
-# 对应 CompositeMap.START 内嵌 def __cost：最小生成树使用 1-similarity。
+# Corresponds to CompositeMap.START inline def __cost: minimum spanning tree uses 1-similarity.
 CompositeMap_START__cost <- function(reference_peaks_per_sample,
                                      sample1,
                                      sample2) {
@@ -737,7 +737,7 @@ CompositeMap_START__cost <- function(reference_peaks_per_sample,
   )
 }
 
-# 对应 CompositeMap.START 内嵌 def __pairwise_cost。
+# Corresponds to CompositeMap.START embedded def __pairwise_cost.
 CompositeMap_START__pairwise_cost <- function(samples,
                                               reference_peaks_per_sample) {
   vapply(samples, function(sample1) {
@@ -749,7 +749,7 @@ CompositeMap_START__pairwise_cost <- function(samples,
   }, numeric(length(samples)))
 }
 
-# 对应 CompositeMap.START 内嵌 def __pairwise_similarity。
+# Corresponds to CompositeMap.START embedded def __pairwise_similarity.
 CompositeMap_START__pairwise_similarity <- function(samples,
                                                     reference_peaks_per_sample) {
   vapply(samples, function(sample1) {
@@ -761,18 +761,18 @@ CompositeMap_START__pairwise_similarity <- function(samples,
   }, numeric(length(samples)))
 }
 
-# 对应 CompositeMap.START 内嵌 def __distance_to_graph。
+# Corresponds to CompositeMap.START embedded def __distance_to_graph.
 CompositeMap_START__distance_to_graph <- function(distance_matrix) {
   graph <- as.matrix(distance_matrix)
   diag(graph) <- 0
 
-  # networkx.from_numpy_array 只把非零非对角元素解释为边。
+  # networkx.from_numpy_array only interprets non-zero off-diagonal elements as edges.
   graph[graph == 0] <- NA_real_
   diag(graph) <- 0
   graph
 }
 
-# 使用 Prim 算法复制 networkx.minimum_spanning_tree 的核心结果。
+# Replicate the core results of networkx.minimum_spanning_tree using Prim's algorithm.
 .constructors_minimum_spanning_tree <- function(graph) {
   n <- nrow(graph)
   if (n <= 1L) return(graph)
@@ -780,7 +780,7 @@ CompositeMap_START__distance_to_graph <- function(distance_matrix) {
   diag(tree) <- 0
   selected <- FALSE | seq_len(n) == 1L
 
-  # 每轮选择已连接集合到未连接节点的最小权重边。
+  # Each round selects the minimum weight edge connecting the set to unconnected nodes.
   while (sum(selected) < n) {
     best_weight <- Inf
     best_from <- best_to <- NA_integer_
@@ -801,7 +801,7 @@ CompositeMap_START__distance_to_graph <- function(distance_matrix) {
   tree
 }
 
-# 计算无权图最短距离，供 networkx.center 等价实现使用。
+# Computes the shortest distance in an unweighted graph, for use by the networkx.center equivalent implementation.
 .constructors_graph_distances <- function(graph, start) {
   n <- nrow(graph)
   distance <- rep(Inf, n)
@@ -821,7 +821,7 @@ CompositeMap_START__distance_to_graph <- function(distance_matrix) {
   distance
 }
 
-# 对应 CompositeMap.START 内嵌 def __find_graph_root。
+# Corresponds to CompositeMap.START embedded def __find_graph_root.
 CompositeMap_START__find_graph_root <- function(self,
                                                 distance_graph,
                                                 reference_peaks_per_sample) {
@@ -830,7 +830,7 @@ CompositeMap_START__find_graph_root <- function(self,
   }, numeric(1))
   root <- which.min(eccentricity)
 
-  # Python 会把 root 与自身对齐，并写入正向和反向映射。
+  # Python will align root with itself and write forward and reverse mappings.
   alignment <- CompositeMap_START__align_pair(
     self,
     self$experiment$all_samples[[root]],
@@ -842,7 +842,7 @@ CompositeMap_START__find_graph_root <- function(self,
   root - 1L
 }
 
-# 对应 CompositeMap.START 内嵌 def __pairwise_traverse：返回树上的唯一 0-based 路径。
+# Corresponds to CompositeMap.START inline def __pairwise_traverse: Returns the only 0-based path on the tree.
 CompositeMap_START__pairwise_traverse <- function(distance_graph,
                                                   root,
                                                   target) {
@@ -854,7 +854,7 @@ CompositeMap_START__pairwise_traverse <- function(distance_graph,
   queue <- root_r
   visited[[root_r]] <- TRUE
 
-  # BFS 在树上找到唯一最短路径。
+  # BFS finds the unique shortest path in the tree.
   while (length(queue) > 0L && !visited[[target_r]]) {
     node <- queue[[1L]]
     queue <- queue[-1L]
@@ -874,7 +874,7 @@ CompositeMap_START__pairwise_traverse <- function(distance_graph,
   as.integer(path - 1L)
 }
 
-# 对应 CompositeMap.START 内嵌 def __align_pair。
+# Corresponds to CompositeMap.START embedded def __align_pair.
 CompositeMap_START__align_pair <- function(self,
                                            sample1,
                                            sample2,
@@ -890,7 +890,7 @@ CompositeMap_START__align_pair <- function(self,
     length(shared), " / ", length(mzs1), " / ", length(mzs2)
   )
 
-  # 为每个共享三位小数 m/z 记录两个样本的 apex。
+  # Record the apex of two samples for each shared three-digit decimal m/z.
   reference_pairs <- list()
   for (mz in shared) {
     apex1 <- peaks1[[which(vapply(peaks1, `[[`, numeric(1), "mz") == mz)[[1L]]]]$apex
@@ -918,7 +918,7 @@ CompositeMap_START__align_pair <- function(self,
     predicted, sample_scans, reference_scans
   )
 
-  # START 原实现保留 LOWESS 浮点结果，不在此处 round。
+  # START The original implementation retains LOWESS floating point results and does not round here.
   keep_forward <- sample_scans != predicted & predicted >= 0 &
     predicted <= reference_bound
   forward_dict <- stats::setNames(
@@ -932,14 +932,14 @@ CompositeMap_START__align_pair <- function(self,
   list(forward_dict, reverse_dict)
 }
 
-# 对应 CompositeMap.START 内嵌 def __align。
+# Corresponds to CompositeMap.START embedded def __align.
 CompositeMap_START__align <- function(self,
                                       path,
                                       reference_peaks_per_sample) {
   calibrated_domain <- self$experiment$all_samples[[path[[1L]] + 1L]]$rt_numbers
   target_sample <- self$experiment$all_samples[[path[[1L]] + 1L]]
 
-  # 沿生成树路径依次组合每一对样本的 RT 映射。
+  # The RT maps for each pair of samples are combined sequentially along the spanning tree path.
   if (length(path) > 1L) {
     for (ii in seq_len(length(path) - 1L)) {
       sample1 <- self$experiment$all_samples[[path[[ii]] + 1L]]
@@ -963,7 +963,7 @@ CompositeMap_START__align <- function(self,
   list(forward, reverse)
 }
 
-# 对应 CompositeMap.START：实验性的 spanning-tree RT alignment 完整路径。
+# Corresponds to CompositeMap.START: Experimental spanning-tree RT alignment full path.
 CompositeMap_START <- function(self) {
   cal_min_peak_height <- self$experiment$parameters$cal_min_peak_height
   min_selectivity <- 0.99
@@ -972,7 +972,7 @@ CompositeMap_START <- function(self) {
     self$experiment$parameters$mz_tolerance_ppm
   )
 
-  # 建立 (sample_name, track_id) 到 MassGrid 0-based 行号的反向索引。
+  # Create an inverted index of (sample_name, track_id) into a MassGrid 0-based row number.
   mass_grid_lookup <- list()
   for (row in seq_len(nrow(self$MassGrid))) {
     for (sample_name in names(self$MassGrid)[-1L]) {
@@ -984,7 +984,7 @@ CompositeMap_START <- function(self) {
     }
   }
 
-  # 每个样本只保留高 m/z selectivity 且具有唯一突出峰的 landmarks。
+  # Only landmarks with high m/z selectivity and unique prominent peaks are retained for each sample.
   reference_peaks_per_sample <- list()
   for (sample in self$experiment$all_samples) {
     sample_peaks <- list()
@@ -1009,7 +1009,7 @@ CompositeMap_START <- function(self) {
     reference_peaks_per_sample[[sample$name]] <- sample_peaks
   }
 
-  # 相似度转距离后建立最小生成树，并从树中心向所有节点传播校准。
+  # After the similarity is converted to distance, a minimum spanning tree is established, and the calibration is propagated from the center of the tree to all nodes.
   distances <- CompositeMap_START__pairwise_cost(
     self$experiment$all_samples,
     reference_peaks_per_sample
@@ -1025,7 +1025,7 @@ CompositeMap_START <- function(self) {
     CompositeMap_START__align(self, path, reference_peaks_per_sample)
   }
 
-  # 使用每个样本得到的映射叠加所有 mass tracks。
+  # Overlay all mass tracks using the map obtained for each sample.
   mz_rows <- seq_len(nrow(self$MassGrid)) - 1L
   base_track <- integer(self$rt_length)
   composite <- lapply(mz_rows, function(index) base_track)
@@ -1055,7 +1055,7 @@ CompositeMap_START <- function(self) {
   invisible(self)
 }
 
-# 对应 CompositeMap.build_composite_tracks：常规 LC 路径的 RT 校准与 track 叠加。
+# Corresponds to CompositeMap.build_composite_tracks: RT calibration and track overlay for regular LC paths.
 CompositeMap_build_composite_tracks <- function(self) {
   message("\nBuilding composite mass tracks and calibrating retention time ...\n")
   parameters <- self$experiment$parameters
@@ -1071,17 +1071,17 @@ CompositeMap_build_composite_tracks <- function(self) {
     self, cal_min_peak_height
   )
 
-  # 每个 MassGrid 行建立一条 int64 语义的 composite base track。
+  # Each MassGrid row establishes a composite base track with int64 semantics.
   mz_rows <- seq_len(nrow(self$MassGrid)) - 1L
   base_track <- integer(self$rt_length)
   composite <- lapply(mz_rows, function(index) base_track)
 
-  # debug 模式与 Python 一样先导出参考 landmark 表。
+  # The debug mode first exports the reference landmark table like Python.
   if (isTRUE(parameters$debug_rtime_align)) {
     CompositeMap_export_reference_sample(self)
   }
 
-  # 逐样本校准 RT，再把 remapped intensity 加入对应 composite row。
+  # Calibrate RT sample by sample, and then add remapped intensity to the corresponding composite row.
   for (sample in self$experiment$all_samples) {
     message("   ", sample$name)
     tracks <- .constructors_get_mass_tracks(sample)
@@ -1137,14 +1137,14 @@ CompositeMap_build_composite_tracks <- function(self) {
   invisible(self)
 }
 
-# 对应 CompositeMap.calibrate_sample_RT_by_standards：Python 原版为 pass。
+# Corresponds to CompositeMap.calibrate_sample_RT_by_standards: Python original version is pass.
 CompositeMap_calibrate_sample_RT_by_standards <- function(self, sample) {
   invisible(self)
   invisible(sample)
   NULL
 }
 
-# 对应 CompositeMap.calibrate_sample_RT：用唯一 landmark peaks 校准一个样本。
+# Corresponds to CompositeMap.calibrate_sample_RT: Calibrate a sample with unique landmark peaks.
 CompositeMap_calibrate_sample_RT <- function(
     self,
     sample,
@@ -1154,7 +1154,7 @@ CompositeMap_calibrate_sample_RT <- function(
     MIN_PEAK_NUM = 15,
     MAX_RETENTION_SHIFT = Inf,
     NUM_ITERATIONS = 3) {
-  # 按 reference landmark 的 MassGrid 行找出该样本相应 track ID。
+  # Press the MassGrid row of the reference landmark to find the corresponding track ID of the sample.
   candidate_landmarks <- vapply(
     self$good_reference_landmark_peaks,
     function(reference_peak) {
@@ -1167,7 +1167,7 @@ CompositeMap_calibrate_sample_RT <- function(
   good_peaks <- list()
   selected_reference <- list()
 
-  # 只保留具有唯一突出峰且 RT 偏移未超阈值的 landmarks。
+  # Only landmarks with unique prominent peaks and RT shifts that do not exceed the threshold are retained.
   for (ii in seq_along(candidate_landmarks)) {
     track_id <- candidate_landmarks[[ii]]
     if (is.na(track_id)) next
@@ -1194,7 +1194,7 @@ CompositeMap_calibrate_sample_RT <- function(
     vapply(good_peaks, `[[`, numeric(1), "apex")
   }
 
-  # Python 使用严格的 > MIN_PEAK_NUM；达到但不超过阈值仍不校准。
+  # Python uses strict > MIN_PEAK_NUM; the threshold is met but not exceeded and still not calibrated.
   if (length(good_peaks) > MIN_PEAK_NUM) {
     calibration <- tryCatch(
       calibration_fuction(
@@ -1215,7 +1215,7 @@ CompositeMap_calibrate_sample_RT <- function(
     }
   }
 
-  # 校准失败时保留空映射，使该样本仍可按原 scan 位置叠加。
+  # When calibration fails, an empty map is retained so that the sample can still be stacked at the original scan position.
   if (!isTRUE(sample$is_rt_aligned)) {
     sample$rt_cal_dict <- numeric()
     sample$reverse_rt_cal_dict <- numeric()
@@ -1227,7 +1227,7 @@ CompositeMap_calibrate_sample_RT <- function(
   invisible(sample)
 }
 
-# 对应 CompositeMap.set_RT_reference：选择参考样本中高选择性的唯一峰。
+# Corresponds to CompositeMap.set_RT_reference: select the only peak with high selectivity in reference sample.
 CompositeMap_set_RT_reference <- function(self,
                                           cal_peak_intensity_threshold = 100000) {
   landmarks <- as.integer(self$`_mz_landmarks_`)
@@ -1242,7 +1242,7 @@ CompositeMap_set_RT_reference <- function(self,
   reference_tracks <- self$reference_sample$list_mass_tracks
   good_reference <- list()
 
-  # Python `if ref_ii` 会排除 track ID 0；这里明确保留这一原始行为。
+  # Python `if ref_ii` excludes track ID 0; this original behavior is explicitly retained here.
   for (ii in seq_along(landmarks)) {
     if (selectivities[[ii]] <= 0.99) next
     row_id <- landmarks[[ii]] - 1L
@@ -1270,13 +1270,13 @@ CompositeMap_set_RT_reference <- function(self,
   good_reference
 }
 
-# 把具名 peak lists 转成 data.frame，并保留所有字段的首次出现顺序。
+# Convert named peak lists to a data.frame, preserving the order of first occurrence of all fields.
 .constructors_records_to_data_frame <- function(records) {
   if (length(records) == 0L) return(data.frame())
   columns <- unique(unlist(lapply(records, names), use.names = FALSE))
   result <- lapply(columns, function(column) {
     values <- lapply(records, function(record) record[[column]])
-    # constructors 的 feature 字段均为长度一标量；缺失字段用 NA。
+    # The feature fields of constructors are all length-scalars; missing fields are NA.
     vapply(values, function(value) {
       if (is.null(value) || length(value) == 0L) NA else value[[1L]]
     }, FUN.VALUE = if (all(vapply(values, function(value) {
@@ -1287,7 +1287,7 @@ CompositeMap_set_RT_reference <- function(self,
   as.data.frame(result, stringsAsFactors = FALSE, check.names = FALSE)
 }
 
-# 对应 CompositeMap.global_peak_detection：在 composite tracks 上检测实验级 features。
+# Corresponds to CompositeMap.global_peak_detection: detects experimental features on composite tracks.
 CompositeMap_global_peak_detection <- function(self) {
   message(
     "\nPeak detection on ", length(self$composite_mass_tracks),
@@ -1299,7 +1299,7 @@ CompositeMap_global_peak_detection <- function(self) {
     self$experiment$parameters
   )
 
-  # 给每个峰分配 F0、F1...，并把 scan 边界转换为 reference rtime。
+  # Assign F0, F1... to each peak and convert scan boundaries to reference rtime.
   for (ii in seq_along(self$FeatureList)) {
     peak <- self$FeatureList[[ii]]
     peak$id_number <- paste0("F", ii - 1L)
@@ -1329,7 +1329,7 @@ CompositeMap_global_peak_detection <- function(self) {
   invisible(self)
 }
 
-# 对应 CompositeMap.get_peak_area_sum：闭区间内强度求和。
+# Corresponds to CompositeMap.get_peak_area_sum: summation of intensity within a closed interval.
 CompositeMap_get_peak_area_sum <- function(self,
                                            track_intensity,
                                            left_base,
@@ -1342,7 +1342,7 @@ CompositeMap_get_peak_area_sum <- function(self,
   ))
 }
 
-# 对应 CompositeMap.get_peak_area_auc：size=2 maximum filter 后求和并 int()。
+# Corresponds to CompositeMap.get_peak_area_auc: size=2 maximum filter, then sum and int().
 CompositeMap_get_peak_area_auc <- function(self,
                                            track_intensity,
                                            left_base,
@@ -1356,7 +1356,7 @@ CompositeMap_get_peak_area_auc <- function(self,
   as.integer(trunc(sum(.constructors_maximum_filter_size2(interval))))
 }
 
-# 对应 CompositeMap.get_peak_area_gaussian：Gaussian 全积分并按 Python int() 截断。
+# Corresponds to CompositeMap.get_peak_area_gaussian: Gaussian fully integrated and truncated by Python int().
 CompositeMap_get_peak_area_gaussian <- function(self,
                                                 track_intensity,
                                                 left_base,
@@ -1369,7 +1369,7 @@ CompositeMap_get_peak_area_gaussian <- function(self,
   trunc(area)
 }
 
-# 对应 CompositeMap.get_DIMS_feature_table：每条 mass track 以最大强度作为 feature。
+# Corresponds to CompositeMap.get_DIMS_feature_table: each mass track uses the maximum intensity as the feature.
 CompositeMap_get_DIMS_feature_table <- function(self) {
   self$FeatureList <- lapply(seq_len(nrow(self$MassGrid)), function(row) {
     list(
@@ -1391,7 +1391,7 @@ CompositeMap_get_DIMS_feature_table <- function(self) {
   })
   feature_table <- .constructors_records_to_data_frame(self$FeatureList)
 
-  # DIMS 不使用峰边界，每个样本列直接取对应 mass track 最大强度。
+  # DIMS does not use peak boundaries, and each sample column directly takes the maximum intensity of the corresponding mass track.
   for (sample in self$experiment$all_samples) {
     tracks <- .constructors_get_mass_tracks(sample)
     feature_table[[sample$name]] <- vapply(self$FeatureList, function(feature) {
@@ -1407,7 +1407,7 @@ CompositeMap_get_DIMS_feature_table <- function(self) {
   invisible(self)
 }
 
-# 对应 CompositeMap.generate_feature_table：按参数选择峰面积算法并填充样本列。
+# Corresponds to CompositeMap.generate_feature_table: Select the peak area algorithm according to parameters and fill the sample column.
 CompositeMap_generate_feature_table <- function(self) {
   area_methods <- list(
     auc = CompositeMap_get_peak_area_auc,
@@ -1418,7 +1418,7 @@ CompositeMap_generate_feature_table <- function(self) {
   if (is.null(area_function)) stop("Unknown peak_area method.", call. = FALSE)
   feature_table <- .constructors_records_to_data_frame(self$FeatureList)
 
-  # Python 会跳过启用 drop_unaligned_samples 后仍未对齐的样本。
+  # Python will skip samples that are not aligned even when drop_unaligned_samples is enabled.
   for (sample in self$experiment$all_samples) {
     if (!isTRUE(self$experiment$parameters$drop_unaligned_samples) ||
         isTRUE(sample$is_rt_aligned)) {
@@ -1431,7 +1431,7 @@ CompositeMap_generate_feature_table <- function(self) {
   invisible(self)
 }
 
-# 对应 CompositeMap.extract_features_per_sample：按 experiment feature 边界提取样本面积。
+# Corresponds to CompositeMap.extract_features_per_sample: extract the sample area according to the experiment feature boundary.
 CompositeMap_extract_features_per_sample <- function(self,
                                                      sample,
                                                      peak_area_function) {
@@ -1452,7 +1452,7 @@ CompositeMap_extract_features_per_sample <- function(self,
   }, numeric(1))
 }
 
-# 对应 CompositeMap.export_reference_sample：写出参考 landmark 的 mz/rtime CSV。
+# Corresponds to CompositeMap.export_reference_sample: write the mz/rtime CSV of the reference landmark.
 CompositeMap_export_reference_sample <- function(self) {
   mz_landmarks <- vapply(
     self$good_reference_landmark_peaks,
@@ -1472,7 +1472,7 @@ CompositeMap_export_reference_sample <- function(self) {
     paste0(self$reference_sample$name, "_mz_rtime_landmarks.csv")
   )
 
-  # 与 Python csv.writer 一样写出 mz、rtime 两列表头和数据行。
+  # Like Python csv.writer, write the mz and rtime column headers and data rows.
   utils::write.csv(
     data.frame(mz = mz_landmarks, rtime = rtime_landmarks),
     output_path,
@@ -1482,6 +1482,6 @@ CompositeMap_export_reference_sample <- function(self) {
   invisible(output_path)
 }
 
-# 提供与 Python 类名相同的 R 构造器别名；不增加新的算法函数。
+# Provide R constructor aliases with the same Python class names; no new algorithm functions are added.
 MassGrid <- MassGrid__init__
 CompositeMap <- CompositeMap__init__
